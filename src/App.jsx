@@ -1,442 +1,350 @@
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Search, Menu, X, Clock, ExternalLink, Radio, ChevronRight, Tv } from "lucide-react";
+import { RefreshCw, Search, Menu, X, Clock, ChevronLeft, Radio, Globe, Share2, Bookmark, ChevronRight } from "lucide-react";
 import { LOGO_BASE64 } from "./logoData.js";
 
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || "";
-
-const CATEGORIES = [
-  { id: "home", label: "होम / Home", labelHi: "होम", labelEn: "Home", query: "India breaking news today" },
-  { id: "local", label: "स्थानीय / Local", labelHi: "स्थानीय", labelEn: "Local", query: "local India state news today" },
-  { id: "state", label: "राज्य / State", labelHi: "राज्य", labelEn: "State", query: "India state government news" },
-  { id: "national", label: "राष्ट्रीय / National", labelHi: "राष्ट्रीय", labelEn: "National", query: "India national news today" },
-  { id: "international", label: "अंतर्राष्ट्रीय / World", labelHi: "अंतर्राष्ट्रीय", labelEn: "World", query: "world international news today" },
-  { id: "sports", label: "खेल / Sports", labelHi: "खेल", labelEn: "Sports", query: "India sports cricket news today" },
-  { id: "entertainment", label: "मनोरंजन / Entertainment", labelHi: "मनोरंजन", labelEn: "Entertainment", query: "India entertainment bollywood news" },
-  { id: "business", label: "व्यापार / Business", labelHi: "व्यापार", labelEn: "Business", query: "India business economy market news" },
-  { id: "politics", label: "राजनीति / Politics", labelHi: "राजनीति", labelEn: "Politics", query: "India politics government news today" },
-  { id: "crime", label: "अपराध / Crime", labelHi: "अपराध", labelEn: "Crime", query: "India crime police news today" },
-];
-
 const RSS_API = "https://api.rss2json.com/v1/api.json?rss_url=";
 
-function buildFeed(query) {
-  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
+const CATS = [
+  { id:"home",          hi:"होम",            en:"Home",          q:"India breaking news today" },
+  { id:"local",         hi:"स्थानीय",        en:"Local",         q:"local India city news today" },
+  { id:"state",         hi:"राज्य",          en:"State",         q:"India state government news today" },
+  { id:"national",      hi:"राष्ट्रीय",      en:"National",      q:"India national news today" },
+  { id:"international", hi:"अंतर्राष्ट्रीय", en:"International",         q:"world international news today" },
+  { id:"sports",        hi:"खेल",            en:"Sports",        q:"India cricket sports news today" },
+  { id:"entertainment", hi:"मनोरंजन",        en:"Entertainment", q:"India bollywood entertainment news" },
+  { id:"business",      hi:"व्यापार",        en:"Business",      q:"India business economy news" },
+  { id:"politics",      hi:"राजनीति",        en:"Politics",      q:"India politics news today" },
+  { id:"crime",         hi:"क्राइम",          en:"Crime",         q:"India crime news today" },
+];
+
+function tAgo(d, l) {
+  const m = Math.floor((Date.now() - new Date(d)) / 60000);
+  if (m < 1) return l==="hi" ? "अभी" : "Just now";
+  if (m < 60) return l==="hi" ? `${m} मिनट पहले` : `${m}m ago`;
+  const h = Math.floor(m/60);
+  if (h < 24) return l==="hi" ? `${h} घंटे पहले` : `${h}h ago`;
+  return l==="hi" ? `${Math.floor(h/24)} दिन पहले` : `${Math.floor(h/24)}d ago`;
 }
 
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "अभी / Just now";
-  if (m < 60) return `${m} मिनट पहले / ${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} घंटे पहले / ${h}h ago`;
-  return `${Math.floor(h / 24)} दिन पहले / ${Math.floor(h / 24)}d ago`;
+function clean(title) {
+  const i = title.lastIndexOf(" - ");
+  if (i > 10 && i > title.length - 45) return { h: title.slice(0,i), s: title.slice(i+3) };
+  return { h: title, s: "News" };
 }
 
-function stripSource(title) {
-  const idx = title.lastIndexOf(" - ");
-  if (idx > 10 && idx > title.length - 40) {
-    return { headline: title.slice(0, idx), source: title.slice(idx + 3) };
-  }
-  return { headline: title, source: "GD News Network" };
-}
-
-// Ad Placeholder Component
-function AdBanner({ size = "leaderboard", label = "Advertisement" }) {
-  const sizes = {
-    leaderboard: { w: "100%", h: "90px", text: "728×90 Leaderboard Ad" },
-    rectangle: { w: "100%", h: "250px", text: "300×250 Rectangle Ad" },
-    halfpage: { w: "100%", h: "200px", text: "300×200 Half Page Ad" },
-    inline: { w: "100%", h: "100px", text: "Inline Ad" },
-  };
-  const s = sizes[size] || sizes.leaderboard;
+function Ad({ h = "80px", label = "Google AdSense" }) {
   return (
-    <div style={{
-      width: s.w, height: s.h, background: "linear-gradient(135deg, #f8f9fa, #e9ecef)",
-      border: "2px dashed #ced4da", borderRadius: "4px", display: "flex",
-      flexDirection: "column", alignItems: "center", justifyContent: "center",
-      margin: "12px 0", color: "#6c757d", fontSize: "12px", fontWeight: "600",
-      letterSpacing: "0.05em", textTransform: "uppercase",
-    }}>
-      <span style={{ fontSize: "10px", color: "#adb5bd" }}>ADVERTISEMENT</span>
-      <span style={{ fontSize: "11px", marginTop: "4px" }}>{s.text}</span>
-      <span style={{ fontSize: "10px", color: "#adb5bd", marginTop: "2px" }}>Google AdSense Slot</span>
+    <div style={{ width:"100%", height:h, background:"#f8f8f8", border:"2px dashed #ddd",
+      borderRadius:"6px", display:"flex", flexDirection:"column", alignItems:"center",
+      justifyContent:"center", margin:"10px 0", color:"#bbb" }}>
+      <span style={{ fontSize:"9px", letterSpacing:"0.1em" }}>ADVERTISEMENT</span>
+      <span style={{ fontSize:"11px", fontWeight:"600", marginTop:"2px" }}>{label}</span>
     </div>
   );
 }
 
-export default function App() {
-  const [activeCat, setActiveCat] = useState("home");
-  const [articles, setArticles] = useState([]);
+// ── ARTICLE READER ──────────────────────────────────────────
+function Reader({ art, lang, onBack }) {
+  const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [aiNews, setAiNews] = useState([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [adminNews, setAdminNews] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("gdnn_news") || "[]"); } catch { return []; }
-  });
+  const [bm, setBm] = useState(false);
 
-  const fetchNews = useCallback(async (catId) => {
-    setLoading(true); setError(null);
-    const cat = CATEGORIES.find(c => c.id === catId);
-    try {
-      const res = await fetch(RSS_API + encodeURIComponent(buildFeed(cat.query)));
-      const data = await res.json();
-      if (data.status !== "ok") throw new Error("Feed error");
-      const cleaned = data.items.slice(0, 20).map((item, i) => {
-        const { headline, source } = stripSource(item.title || "");
-        return {
-          id: item.guid || i,
-          headline,
-          source: "GD News Network",
-          originalSource: source,
-          link: item.link,
-          pubDate: item.pubDate,
-          thumbnail: item.thumbnail || item.enclosure?.link || null,
-          description: (item.description || "").replace(/<[^>]+>/g, "").slice(0, 180),
-          category: cat.labelHi,
-        };
-      });
-      setArticles(cleaned);
-      setLastUpdated(new Date());
-    } catch {
-      setError("खबरें लोड नहीं हो सकीं। कृपया पुनः प्रयास करें।");
-    } finally { setLoading(false); }
-  }, []);
-
-  const fetchAiNews = useCallback(async () => {
-    if (!GEMINI_KEY) return;
-    setAiLoading(true);
-    try {
-      const cat = CATEGORIES.find(c => c.id === activeCat);
-      const prompt = `You are a news writer for GD News Network, a Hindi-English bilingual state-level news channel in India. 
-Write 3 short news summaries about "${cat.query}" in this exact JSON format (no markdown, pure JSON):
-[{"headline":"Hindi headline here","headline_en":"English headline here","summary":"2-3 line summary in Hindi","summary_en":"2-3 line summary in English","category":"${cat.labelHi}"}]
-Make them realistic, current, and relevant to Indian readers.`;
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      });
-      const data = await res.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-      const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      setAiNews(parsed);
-    } catch { setAiNews([]); }
-    finally { setAiLoading(false); }
-  }, [activeCat]);
-
-  useEffect(() => { fetchNews(activeCat); }, [activeCat, fetchNews]);
-  useEffect(() => { if (GEMINI_KEY) fetchAiNews(); }, [activeCat, fetchAiNews]);
   useEffect(() => {
-    const interval = setInterval(() => fetchNews(activeCat), 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [activeCat, fetchNews]);
+    if (!GEMINI_KEY) { setBody(art.desc); setLoading(false); return; }
+    (async () => {
+      try {
+        const prompt = lang === "hi"
+          ? `तुम GD News Network के वरिष्ठ पत्रकार हो। इस खबर पर एक विस्तृत 350-शब्द Hindi news article लिखो। केवल article body, कोई heading नहीं।\nHeadline: ${art.headline}\nSummary: ${art.desc}`
+          : `You are a senior journalist at GD News Network. Write a detailed 350-word news article. Only the article body, no headings.\nHeadline: ${art.headline}\nSummary: ${art.desc}`;
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+          { method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ contents:[{ parts:[{ text:prompt }] }] }) });
+        const d = await r.json();
+        setBody(d.candidates?.[0]?.content?.parts?.[0]?.text || art.desc);
+      } catch { setBody(art.desc); }
+      setLoading(false);
+    })();
+  }, [art, lang]);
 
-  // Listen for new admin news
-  useEffect(() => {
-    const handler = () => {
-      try { setAdminNews(JSON.parse(localStorage.getItem("gdnn_news") || "[]")); } catch {}
-    };
-    window.addEventListener("storage", handler);
-    window.addEventListener("gdnn_update", handler);
-    return () => { window.removeEventListener("storage", handler); window.removeEventListener("gdnn_update", handler); };
-  }, []);
-
-  const filteredArticles = searchQuery
-    ? articles.filter(a => a.headline.toLowerCase().includes(searchQuery.toLowerCase()))
-    : articles;
-
-  const ticker = [...adminNews.slice(0, 3), ...articles.slice(0, 5)].map(a => a.headline || a.title);
+  const share = () => navigator.share?.({ title: art.headline, text: art.desc, url: art.link });
 
   return (
-    <div style={S.page}>
-      <style>{CSS}</style>
-
-      {/* TOP BAR */}
-      <div style={S.topBar}>
-        <div style={S.topBarInner}>
-          <span style={S.topDate}>{new Date().toLocaleDateString("hi-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
-          <span style={S.topDate}>|</span>
-          <span style={S.topDate}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+    <div style={{ minHeight:"100vh", background:"#fff", fontFamily:"'Noto Sans','Inter',sans-serif" }}>
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
+      <div style={{ background:"#CC0000", padding:"10px 14px", display:"flex", alignItems:"center", gap:"10px", position:"sticky", top:0, zIndex:50 }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", color:"#fff", cursor:"pointer", padding:"4px", display:"flex", alignItems:"center" }}>
+          <ChevronLeft size={24} />
+        </button>
+        <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News" style={{ height:"28px", objectFit:"contain" }} />
+        <div style={{ marginLeft:"auto", display:"flex", gap:"12px" }}>
+          <button onClick={()=>setBm(!bm)} style={{ background:"none", border:"none", color:"#fff", cursor:"pointer" }}>
+            <Bookmark size={20} fill={bm?"#fff":"none"} />
+          </button>
+          <button onClick={share} style={{ background:"none", border:"none", color:"#fff", cursor:"pointer" }}>
+            <Share2 size={20} />
+          </button>
         </div>
       </div>
 
-      {/* HEADER */}
-      <header style={S.header}>
-        <div style={S.headerInner}>
-          <button style={S.iconBtn} onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-          <div style={S.logoWrap}>
-            <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News Network" style={S.logo} />
+      <div style={{ maxWidth:"760px", margin:"0 auto", padding:"16px 14px 50px" }}>
+        <div style={{ display:"flex", gap:"8px", alignItems:"center", marginBottom:"12px", flexWrap:"wrap" }}>
+          <span style={{ background:"#CC0000", color:"#fff", fontSize:"10px", fontWeight:"800", padding:"3px 8px", borderRadius:"3px" }}>
+            GD NEWS NETWORK
+          </span>
+          <span style={{ fontSize:"11px", color:"#888" }}>
+            <Clock size={11} style={{ verticalAlign:"middle", marginRight:"3px" }} />
+            {tAgo(art.pubDate, lang)}
+          </span>
+        </div>
+
+        <h1 style={{ fontSize:"21px", fontWeight:"800", lineHeight:1.3, color:"#111", margin:"0 0 14px" }}>
+          {art.headline}
+        </h1>
+
+        {art.img && (
+          <div style={{ marginBottom:"16px", borderRadius:"8px", overflow:"hidden" }}>
+            <img src={art.img} alt="" style={{ width:"100%", maxHeight:"240px", objectFit:"cover", display:"block" }}
+              onError={e => e.target.style.display="none"} />
+            <div style={{ background:"#f5f5f5", padding:"5px 10px", fontSize:"10px", color:"#999" }}>
+              © GD News Network
+            </div>
           </div>
-          <div style={S.headerRight}>
-            <button style={S.iconBtn} onClick={() => setSearchOpen(!searchOpen)}>
-              <Search size={20} />
-            </button>
-            <button style={S.iconBtn} onClick={() => fetchNews(activeCat)} title="Refresh">
-              <RefreshCw size={18} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+        )}
+
+        <Ad h="80px" label="728×90 Ad" />
+
+        {loading ? (
+          <div style={{ textAlign:"center", padding:"50px 0" }}>
+            <RefreshCw size={24} style={{ animation:"spin 1s linear infinite", color:"#CC0000" }} />
+            <p style={{ color:"#888", fontSize:"13px", marginTop:"10px" }}>
+              {lang==="hi" ? "🤖 AI पूरी खबर लिख रहा है..." : "🤖 AI generating full article..."}
+            </p>
+          </div>
+        ) : (
+          <div style={{ fontSize:"16px", lineHeight:1.85, color:"#222" }}>
+            {body.split('\n').filter(p=>p.trim()).map((p,i) => (
+              <p key={i} style={{ margin:"0 0 16px" }}>{p}</p>
+            ))}
+          </div>
+        )}
+
+        <Ad h="220px" label="300×250 Ad" />
+
+        <div style={{ borderTop:"1px solid #eee", paddingTop:"14px", marginTop:"10px" }}>
+          <p style={{ fontSize:"11px", color:"#bbb", margin:"0 0 8px" }}>
+            {lang==="hi" ? "मूल स्रोत:" : "Original Source:"} {art.src}
+          </p>
+          <a href={art.link} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize:"13px", color:"#CC0000", fontWeight:"700" }}>
+            {lang==="hi" ? "मूल खबर पढ़ें →" : "Read Original Story →"}
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP ─────────────────────────────────────────────────
+export default function App() {
+  const [lang, setLang] = useState("hi");
+  const [cat, setCat] = useState("home");
+  const [arts, setArts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [menu, setMenu] = useState(false);
+  const [search, setSearch] = useState(false);
+  const [sq, setSq] = useState("");
+  const [reader, setReader] = useState(null);
+  const [adminNews] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("gdnn_news")||"[]"); } catch { return []; }
+  });
+
+  const load = useCallback(async (catId) => {
+    setLoading(true); setErr(null);
+    const c = CATS.find(x=>x.id===catId);
+    try {
+      const feed = `https://news.google.com/rss/search?q=${encodeURIComponent(c.q)}&hl=en-IN&gl=IN&ceid=IN:en`;
+      const r = await fetch(RSS_API + encodeURIComponent(feed));
+      const d = await r.json();
+      if (d.status !== "ok") throw new Error();
+      setArts(d.items.slice(0,25).map((it,i) => {
+        const {h,s} = clean(it.title||"");
+        const img = it.thumbnail || it.enclosure?.link || null;
+        return {
+          id: it.guid||i, headline:h, src:s, link:it.link,
+          pubDate:it.pubDate, img: img,
+          desc:(it.description||"").replace(/<[^>]+>/g,"").slice(0,250),
+        };
+      }));
+    } catch { setErr(lang==="hi"?"खबरें लोड नहीं हो सकीं।":"Could not load news."); }
+    setLoading(false);
+  }, [lang]);
+
+  useEffect(()=>{ load(cat); },[cat,load]);
+  useEffect(()=>{ const t=setInterval(()=>load(cat),5*60*1000); return()=>clearInterval(t); },[cat,load]);
+
+  if (reader) return <Reader art={reader} lang={lang} onBack={()=>setReader(null)} />;
+
+  const list = sq ? arts.filter(a=>a.headline.toLowerCase().includes(sq.toLowerCase())) : arts;
+  const ticker = [...adminNews.slice(0,2), ...arts.slice(0,6)].map(a=>a.headline||a.title).filter(Boolean);
+
+  return (
+    <div style={{ background:"#fff", fontFamily:"'Noto Sans','Inter',sans-serif", color:"#111", minHeight:"100vh" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700;800&display=swap');
+        @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+        @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+        *{box-sizing:border-box} body{margin:0} a{text-decoration:none;color:inherit}
+        ::-webkit-scrollbar{display:none}
+        .card:hover{background:#fafafa}
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{ background:"#1a1a1a", padding:"5px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <span style={{ fontSize:"10px", color:"#aaa" }}>
+          {new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"short",day:"numeric",month:"long",year:"numeric"})}
+        </span>
+        <button onClick={()=>setLang(l=>l==="hi"?"en":"hi")}
+          style={{ display:"flex", alignItems:"center", gap:"4px", background:"#CC0000", color:"#fff", border:"none", padding:"4px 10px", borderRadius:"12px", fontSize:"11px", fontWeight:"700", cursor:"pointer" }}>
+          <Globe size={11} />
+          {lang==="hi"?"English":"हिंदी"}
+        </button>
+      </div>
+
+      {/* HEADER */}
+      <header style={{ background:"#fff", borderBottom:"3px solid #CC0000", position:"sticky", top:0, zIndex:40, boxShadow:"0 2px 8px rgba(0,0,0,0.08)" }}>
+        <div style={{ maxWidth:"760px", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px" }}>
+          <button onClick={()=>setMenu(!menu)} style={{ background:"none", border:"none", cursor:"pointer", padding:"6px", color:"#111" }}>
+            {menu ? <X size={22}/> : <Menu size={22}/>}
+          </button>
+          <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News Network" style={{ height:"44px", width:"auto", objectFit:"contain" }} />
+          <div style={{ display:"flex", gap:"4px" }}>
+            <button onClick={()=>setSearch(!search)} style={{ background:"none", border:"none", cursor:"pointer", padding:"6px", color:"#111" }}><Search size={20}/></button>
+            <button onClick={()=>load(cat)} style={{ background:"none", border:"none", cursor:"pointer", padding:"6px", color:"#111" }}>
+              <RefreshCw size={18} style={{ animation:loading?"spin 1s linear infinite":"none" }}/>
             </button>
           </div>
         </div>
 
-        {/* Search Bar */}
-        {searchOpen && (
-          <div style={S.searchBar}>
-            <input
-              style={S.searchInput}
-              placeholder="खबरें खोजें / Search news..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              autoFocus
-            />
+        {search && (
+          <div style={{ padding:"8px 12px", background:"#f5f5f5", borderTop:"1px solid #eee" }}>
+            <input autoFocus value={sq} onChange={e=>setSq(e.target.value)}
+              placeholder={lang==="hi"?"खबरें खोजें...":"Search news..."}
+              style={{ width:"100%", padding:"9px 14px", border:"1px solid #ddd", borderRadius:"20px", fontSize:"14px", outline:"none" }} />
           </div>
         )}
 
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <nav style={S.mobileMenu}>
-            {CATEGORIES.map(cat => (
-              <button key={cat.id} style={{ ...S.menuItem, ...(activeCat === cat.id ? S.menuItemActive : {}) }}
-                onClick={() => { setActiveCat(cat.id); setMenuOpen(false); }}>
-                {cat.labelHi} / {cat.labelEn}
+        {menu && (
+          <nav style={{ background:"#fff", borderTop:"1px solid #eee", maxHeight:"70vh", overflowY:"auto" }}>
+            {CATS.map(c=>(
+              <button key={c.id} onClick={()=>{setCat(c.id);setMenu(false);}}
+                style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", background: cat===c.id?"#fff5f5":"none", border:"none", borderBottom:"1px solid #f5f5f5", fontSize:"14px", fontWeight: cat===c.id?"800":"400", color: cat===c.id?"#CC0000":"#333", cursor:"pointer" }}>
+                {lang==="hi"?c.hi:c.en}
               </button>
             ))}
+            <button onClick={()=>window.location.href="/admin"}
+              style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", background:"none", border:"none", borderTop:"2px solid #eee", fontSize:"14px", color:"#666", cursor:"pointer" }}>
+              🔐 Admin Panel
+            </button>
           </nav>
         )}
       </header>
 
-      {/* LEADERBOARD AD */}
-      <div style={{ padding: "0 12px" }}>
-        <AdBanner size="leaderboard" />
-      </div>
+      {/* AD */}
+      <div style={{ padding:"0 12px", maxWidth:"760px", margin:"0 auto" }}><Ad h="80px" label="728×90 Leaderboard Ad" /></div>
 
-      {/* BREAKING NEWS TICKER */}
+      {/* TICKER */}
       {ticker.length > 0 && (
-        <div style={S.ticker}>
-          <span style={S.tickerLabel}><Radio size={12} style={{ marginRight: 4 }} />ब्रेकिंग</span>
-          <div style={S.tickerTrack}>
-            <div style={S.tickerContent}>
-              {ticker.concat(ticker).map((h, i) => (
-                <span key={i} style={S.tickerItem}>{h} <span style={{ color: "#e8b84b", margin: "0 16px" }}>●</span></span>
+        <div style={{ display:"flex", alignItems:"center", background:"#CC0000", overflow:"hidden", height:"32px" }}>
+          <span style={{ display:"flex", alignItems:"center", background:"#1a1a1a", color:"#e8b84b", fontSize:"11px", fontWeight:"800", padding:"0 12px", height:"100%", flexShrink:0, whiteSpace:"nowrap" }}>
+            <Radio size={11} style={{ marginRight:"4px" }}/>{lang==="hi"?"ब्रेकिंग":"LIVE"}
+          </span>
+          <div style={{ overflow:"hidden", flex:1, height:"100%", display:"flex", alignItems:"center" }}>
+            <div style={{ display:"flex", whiteSpace:"nowrap", animation:"ticker 40s linear infinite" }}>
+              {ticker.concat(ticker).map((h,i)=>(
+                <span key={i} style={{ color:"#fff", fontSize:"12px", paddingRight:"16px", fontWeight:"500" }}>
+                  {h}<span style={{ color:"#e8b84b", margin:"0 14px" }}>●</span>
+                </span>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* CATEGORY NAV */}
-      <nav style={S.catNav}>
-        <div style={S.catScroll}>
-          {CATEGORIES.map(cat => (
-            <button key={cat.id}
-              style={{ ...S.catBtn, ...(activeCat === cat.id ? S.catBtnActive : {}) }}
-              onClick={() => setActiveCat(cat.id)}>
-              {cat.labelHi}
+      {/* CAT NAV */}
+      <nav style={{ background:"#fff", borderBottom:"1px solid #eee", position:"sticky", top:"67px", zIndex:30 }}>
+        <div style={{ maxWidth:"760px", margin:"0 auto", display:"flex", overflowX:"auto", padding:"0 8px", gap:"2px", scrollbarWidth:"none" }}>
+          {CATS.map(c=>(
+            <button key={c.id} onClick={()=>setCat(c.id)}
+              style={{ background:"none", border:"none", padding:"10px 12px", fontSize:"13px", fontWeight:"600", color:cat===c.id?"#CC0000":"#888", cursor:"pointer", whiteSpace:"nowrap", borderBottom:cat===c.id?"2.5px solid #CC0000":"2.5px solid transparent" }}>
+              {lang==="hi"?c.hi:c.en}
             </button>
           ))}
         </div>
       </nav>
 
-      {/* MAIN CONTENT */}
-      <main style={S.main}>
-        {/* ADMIN NEWS (if any) */}
+      {/* CONTENT */}
+      <main style={{ maxWidth:"760px", margin:"0 auto", padding:"12px 12px 50px" }}>
+
+        {/* ADMIN NEWS */}
         {adminNews.length > 0 && (
-          <section style={{ marginBottom: "20px" }}>
-            <div style={S.sectionHead}>
-              <span style={S.sectionTitle}>📢 GD News Network — विशेष खबर</span>
+          <section style={{ marginBottom:"16px" }}>
+            <div style={{ display:"flex", alignItems:"center", borderLeft:"4px solid #CC0000", paddingLeft:"8px", margin:"0 0 10px" }}>
+              <span style={{ fontWeight:"800", fontSize:"14px" }}>📢 {lang==="hi"?"विशेष खबर":"Special Report"}</span>
             </div>
-            {adminNews.slice(0, 3).map((news, i) => (
-              <div key={i} style={S.adminCard}>
-                {news.image && <img src={news.image} alt="" style={S.adminCardImg} />}
-                <div style={S.adminCardBody}>
-                  <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
-                  <h2 style={S.adminCardHeadline}>{news.title}</h2>
-                  <p style={S.adminCardSummary}>{news.summary}</p>
-                  <span style={S.timeTag}><Clock size={11} style={{ marginRight: 3 }} />{timeAgo(news.createdAt)}</span>
+            {adminNews.slice(0,2).map((n,i)=>(
+              <div key={i} className="card" onClick={()=>setReader({headline:n.title,desc:n.summary,img:n.image,pubDate:n.createdAt,link:"#",src:"GD News Network"})}
+                style={{ background:"#fff", border:"2px solid #CC0000", borderRadius:"8px", overflow:"hidden", marginBottom:"10px", cursor:"pointer" }}>
+                {n.image && <img src={n.image} alt="" style={{ width:"100%", height:"180px", objectFit:"cover" }} onError={e=>e.target.style.display="none"} />}
+                <div style={{ padding:"12px 14px" }}>
+                  <span style={{ fontSize:"9px", fontWeight:"800", color:"#CC0000", letterSpacing:"0.06em", display:"block", marginBottom:"4px" }}>GD NEWS NETWORK</span>
+                  <h2 style={{ fontSize:"17px", fontWeight:"800", lineHeight:1.3, color:"#111", margin:"0 0 6px" }}>{n.title}</h2>
+                  <p style={{ fontSize:"13px", color:"#555", lineHeight:1.5, margin:"0 0 8px" }}>{n.summary}</p>
+                  <span style={{ fontSize:"12px", color:"#CC0000", fontWeight:"700" }}>{lang==="hi"?"पूरी खबर पढ़ें →":"Read Full Story →"}</span>
                 </div>
               </div>
             ))}
           </section>
         )}
 
-        {/* AI NEWS */}
-        {aiNews.length > 0 && (
-          <section style={{ marginBottom: "20px" }}>
-            <div style={S.sectionHead}>
-              <span style={S.sectionTitle}>🤖 AI संपादित खबरें / AI Curated</span>
-            </div>
-            <div style={S.aiGrid}>
-              {aiNews.map((n, i) => (
-                <div key={i} style={S.aiCard}>
-                  <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
-                  <h3 style={S.aiCardHeadline}>{n.headline}</h3>
-                  <p style={S.aiCardHeadlineEn}>{n.headline_en}</p>
-                  <p style={S.aiCardSummary}>{n.summary}</p>
-                  <p style={S.aiCardSummaryEn}>{n.summary_en}</p>
-                </div>
-              ))}
-            </div>
-            {/* RECTANGLE AD after AI news */}
-            <AdBanner size="rectangle" />
-          </section>
-        )}
-
-        {loading && articles.length === 0 && (
-          <div style={S.stateBox}>
-            <RefreshCw size={28} style={{ animation: "spin 1s linear infinite", color: "#c00" }} />
-            <p style={S.stateText}>खबरें लोड हो रही हैं... / Loading news...</p>
+        {loading && (
+          <div style={{ textAlign:"center", padding:"60px 0" }}>
+            <RefreshCw size={28} style={{ animation:"spin 1s linear infinite", color:"#CC0000" }}/>
+            <p style={{ color:"#888", fontSize:"13px", marginTop:"10px" }}>
+              {lang==="hi"?"खबरें लोड हो रही हैं...":"Loading news..."}
+            </p>
           </div>
         )}
 
-        {error && (
-          <div style={S.stateBox}>
-            <p style={{ color: "#c00", fontWeight: "700" }}>{error}</p>
-            <button style={S.retryBtn} onClick={() => fetchNews(activeCat)}>पुनः प्रयास / Retry</button>
+        {err && (
+          <div style={{ textAlign:"center", padding:"50px 20px" }}>
+            <p style={{ color:"#CC0000", fontWeight:"700", fontSize:"14px" }}>{err}</p>
+            <button onClick={()=>load(cat)} style={{ background:"#CC0000", color:"#fff", border:"none", padding:"9px 20px", borderRadius:"6px", fontWeight:"700", cursor:"pointer", marginTop:"10px" }}>
+              {lang==="hi"?"पुनः प्रयास":"Retry"}
+            </button>
           </div>
         )}
 
-        {!loading && !error && filteredArticles.length > 0 && (
+        {!loading && !err && list.length > 0 && (
           <>
             {/* HERO */}
-            <a href={filteredArticles[0].link} target="_blank" rel="noopener noreferrer" style={S.hero}>
-              <div style={S.heroImgWrap}>
-                {filteredArticles[0].thumbnail
-                  ? <img src={filteredArticles[0].thumbnail} alt="" style={S.heroImg} />
-                  : <div style={S.heroImgFallback} />}
-                <div style={S.heroGrad} />
-                <span style={S.breakingTag}>ब्रेकिंग न्यूज</span>
-                <span style={S.catTag}>{filteredArticles[0].category}</span>
+            <div className="card" onClick={()=>setReader(list[0])}
+              style={{ background:"#fff", border:"1px solid #eee", borderRadius:"8px", overflow:"hidden", marginBottom:"12px", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
+              <div style={{ position:"relative", width:"100%", height:"210px", background:"#f0f0f0" }}>
+                {list[0].img
+                  ? <img src={list[0].img} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.style.display="none";e.target.parentNode.style.background="linear-gradient(135deg,#CC0000,#7a0000)"}}/>
+                  : <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#CC0000,#7a0000)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span style={{ color:"rgba(255,255,255,0.3)", fontSize:"60px", fontWeight:"800" }}>GD</span>
+                    </div>}
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent 50%,rgba(0,0,0,0.4))" }}/>
+                <span style={{ position:"absolute", top:"10px", left:"10px", background:"#CC0000", color:"#fff", fontSize:"10px", fontWeight:"800", padding:"3px 8px", borderRadius:"3px" }}>
+                  {lang==="hi"?"ब्रेकिंग न्यूज":"BREAKING NEWS"}
+                </span>
               </div>
-              <div style={S.heroBody}>
-                <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
-                <h1 style={S.heroHeadline}>{filteredArticles[0].headline}</h1>
-                <p style={S.heroDesc}>{filteredArticles[0].description}...</p>
-                <div style={S.heroMeta}>
-                  <Clock size={12} style={{ marginRight: 4 }} />
-                  <span>{timeAgo(filteredArticles[0].pubDate)}</span>
-                  <span style={{ margin: "0 8px" }}>|</span>
-                  <span style={{ color: "#999", fontSize: "11px" }}>Source: {filteredArticles[0].originalSource}</span>
-                </div>
-              </div>
-            </a>
-
-            {/* INLINE AD */}
-            <AdBanner size="inline" />
-
-            {/* TOP 3 CARDS */}
-            <div style={S.topGrid}>
-              {filteredArticles.slice(1, 4).map(art => (
-                <a key={art.id} href={art.link} target="_blank" rel="noopener noreferrer" style={S.topCard}>
-                  {art.thumbnail ? <img src={art.thumbnail} alt="" style={S.topCardImg} /> : <div style={S.topCardImgFb} />}
-                  <div style={S.topCardBody}>
-                    <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
-                    <h3 style={S.topCardHeadline}>{art.headline}</h3>
-                    <span style={S.timeTag}><Clock size={10} style={{ marginRight: 2 }} />{timeAgo(art.pubDate)}</span>
-                  </div>
-                </a>
-              ))}
-            </div>
-
-            {/* RECTANGLE AD */}
-            <AdBanner size="rectangle" />
-
-            {/* NEWS LIST */}
-            <div style={S.sectionHead}>
-              <span style={S.sectionTitle}>सभी खबरें / All News</span>
-              <span style={S.sectionMore}>और देखें <ChevronRight size={14} /></span>
-            </div>
-
-            {filteredArticles.slice(4).map((art, idx) => (
-              <div key={art.id}>
-                <a href={art.link} target="_blank" rel="noopener noreferrer" style={S.listCard}>
-                  {art.thumbnail
-                    ? <img src={art.thumbnail} alt="" style={S.listCardImg} />
-                    : <div style={S.listCardImgFb}><span style={{ color: "#c00", fontWeight: "800", fontSize: "20px" }}>GD</span></div>}
-                  <div style={S.listCardBody}>
-                    <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
-                    <h3 style={S.listCardHeadline}>{art.headline}</h3>
-                    <div style={S.listCardMeta}>
-                      <span style={S.timeTag}><Clock size={10} style={{ marginRight: 2 }} />{timeAgo(art.pubDate)}</span>
-                      <ExternalLink size={11} color="#aaa" />
-                    </div>
-                  </div>
-                </a>
-                {/* Ad every 5 articles */}
-                {(idx + 1) % 5 === 0 && <AdBanner size="inline" />}
-              </div>
-            ))}
-          </>
-        )}
-      </main>
-
-      {/* FOOTER */}
-      <footer style={S.footer}>
-        <AdBanner size="leaderboard" />
-        <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News Network" style={{ height: "36px", objectFit: "contain", marginBottom: "8px" }} />
-        <p style={{ fontSize: "12px", color: "#666", margin: "4px 0" }}>GD News Network — आपकी अपनी खबर / Your Trusted News Source</p>
-        <p style={{ fontSize: "11px", color: "#aaa", margin: "2px 0" }}>© 2025 GD News Network. All Rights Reserved.</p>
-        <p style={{ fontSize: "10px", color: "#bbb", marginTop: "6px" }}>Headlines aggregated via Google News. Full stories on publisher sites.</p>
-      </footer>
-    </div>
-  );
-}
-
-const RED = "#CC0000";
-const GOLD = "#E8B84B";
-const DARK = "#1A1A1A";
-const WHITE = "#FFFFFF";
-const LIGHTGRAY = "#F5F5F5";
-const BORDER = "#E0E0E0";
-
-const S = {
-  page: { background: WHITE, fontFamily: "'Noto Sans', 'Inter', sans-serif", color: DARK, minHeight: "100vh" },
-  topBar: { background: DARK, padding: "4px 12px" },
-  topBarInner: { display: "flex", gap: "8px", maxWidth: "760px", margin: "0 auto", alignItems: "center" },
-  topDate: { fontSize: "10px", color: "#aaa", whiteSpace: "nowrap" },
-  header: { background: WHITE, borderBottom: `3px solid ${RED}`, position: "sticky", top: 0, zIndex: 30, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" },
-  headerInner: { maxWidth: "760px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px" },
-  logoWrap: { flex: 1, display: "flex", justifyContent: "center" },
-  logo: { height: "44px", width: "auto", objectFit: "contain" },
-  headerRight: { display: "flex", gap: "4px", alignItems: "center" },
-  iconBtn: { background: "none", border: "none", cursor: "pointer", padding: "6px", color: DARK, borderRadius: "6px" },
-  searchBar: { padding: "8px 12px", borderTop: `1px solid ${BORDER}`, background: LIGHTGRAY },
-  searchInput: { width: "100%", padding: "8px 12px", border: `1px solid ${BORDER}`, borderRadius: "20px", fontSize: "14px", outline: "none", boxSizing: "border-box" },
-  mobileMenu: { background: WHITE, borderTop: `1px solid ${BORDER}`, maxHeight: "60vh", overflowY: "auto" },
-  menuItem: { display: "block", width: "100%", textAlign: "left", padding: "12px 16px", background: "none", border: "none", borderBottom: `1px solid ${BORDER}`, fontSize: "14px", cursor: "pointer", color: DARK },
-  menuItemActive: { color: RED, fontWeight: "700", background: "#fff5f5" },
-  ticker: { display: "flex", alignItems: "center", background: RED, overflow: "hidden", height: "32px" },
-  tickerLabel: { display: "flex", alignItems: "center", background: DARK, color: GOLD, fontSize: "11px", fontWeight: "800", padding: "0 12px", height: "100%", flexShrink: 0, whiteSpace: "nowrap" },
-  tickerTrack: { overflow: "hidden", flex: 1, height: "100%", display: "flex", alignItems: "center" },
-  tickerContent: { display: "flex", whiteSpace: "nowrap", animation: "ticker 40s linear infinite" },
-  tickerItem: { color: WHITE, fontSize: "12px", paddingRight: "16px", fontWeight: "500" },
-  catNav: { background: WHITE, borderBottom: `1px solid ${BORDER}`, position: "sticky", top: "66px", zIndex: 20 },
-  catScroll: { maxWidth: "760px",
-margin: "0 auto", display: "flex", overflowX: "auto", padding: "0 8px", gap: "2px", scrollbarWidth: "none" },
-  catBtn: { background: "none", border: "none", padding: "10px 12px", fontSize: "13px", fontWeight: "600", color: "#888", cursor: "pointer", whiteSpace: "nowrap", borderBottom: "2.5px solid transparent" },
-  catActive: { color: RED, borderBottom: `2.5px solid ${RED}` },
-  main: { maxWidth: "760px", margin: "0 auto", padding: "12px 12px 40px" },
-  secHead: { display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: `4px solid ${RED}`, paddingLeft: "8px", margin: "14px 0 10px" },
-  secTitle: { fontWeight: "800", fontSize: "14px", color: "#111" },
-  gdBadge: { fontSize: "9px", fontWeight: "800", color: RED, letterSpacing: "0.06em", display: "block", marginBottom: "3px" },
-  heroCard: { background: "#fff", border: "1px solid #eee", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" },
-  heroH: { fontSize: "18px", fontWeight: "800", lineHeight: 1.3, color: "#111", margin: "4px 0 8px" },
-  readMore: { fontSize: "12px", color: RED, fontWeight: "700" },
-  retryBtn: { background: RED, color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", fontSize: "13px", fontWeight: "700", cursor: "pointer", marginTop: "10px" },
-};
-
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700;800&display=swap');
-  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
-  * { box-sizing:border-box; }
-  body { margin:0; }
-  a { text-decoration:none; color:inherit; }
-  ::-webkit-scrollbar { display:none; }
-`;
+              <div style={{ padding:"14px" }}>
+                <span style={{ fontSize:"9px", fontWeight:"800", color:"#CC0000", letterSpacing:"0.06em", display:"block", marginBottom:"4px" }}>GD NEWS NETWORK</span>
+                <h1 style={{ fontSize:"18px", fontWeight:"800", lineHeight:1.3, color:"#111", margin:"0 0 8px" }}>{list[0].headline}</h1>
+                <p style={{ fontSize:"13px", color:"#555", lineHeight:1.5, margin:"0 0 10px" }}>{list[0].desc}...</p>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+     
