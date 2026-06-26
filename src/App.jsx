@@ -32,6 +32,7 @@ function buildFeed(query, langCode) {
 }
 
 function timeAgo(dateStr, lang) {
+  if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return lang === "hi" ? "अभी" : "Just now";
@@ -128,7 +129,7 @@ function ArticleReader({ article, lang, onBack, geminiKey }) {
         {/* Hero Image */}
         {article.thumbnail && (
           <div style={{ width:"100%", borderRadius:"8px", overflow:"hidden", marginBottom:"16px" }}>
-            <img src={article.thumbnail} alt="" style={{ width:"100%", height:"220px", objectFit:"cover" }} />
+            <img src={article.thumbnail} alt="News Hero" style={{ width:"100%", height:"220px", objectFit:"cover" }} />
             <div style={{ background:"#f5f5f5", padding:"6px 10px", fontSize:"11px", color:"#888" }}>
               📷 GD News Network
             </div>
@@ -188,6 +189,7 @@ export default function App() {
   const fetchNews = useCallback(async (catId) => {
     setLoading(true); setError(null);
     const cat = CATEGORIES.find(c => c.id === catId);
+    if (!cat) return;
     try {
       const url = RSS_API + encodeURIComponent(buildFeed(cat.query, lang));
       const res = await fetch(url);
@@ -199,7 +201,7 @@ export default function App() {
         const headline = dashIdx > 10 ? title.slice(0, dashIdx) : title;
         const originalSource = dashIdx > 10 ? title.slice(dashIdx + 3) : "News";
         return {
-          id: item.guid || i,
+          id: item.guid || `local-id-${i}`,
           headline,
           originalSource,
           link: item.link,
@@ -215,11 +217,13 @@ export default function App() {
     } finally { setLoading(false); }
   }, [lang]);
 
-  useEffect(() => { fetchNews(activeCat); }, [activeCat, fetchNews, lang]);
+  useEffect(() => { fetchNews(activeCat); }, [activeCat, fetchNews]);
+  
   useEffect(() => {
     const i = setInterval(() => fetchNews(activeCat), 5 * 60 * 1000);
     return () => clearInterval(i);
   }, [activeCat, fetchNews]);
+
   useEffect(() => {
     const h = () => { try { setAdminNews(JSON.parse(localStorage.getItem("gdnn_news") || "[]")); } catch {} };
     window.addEventListener("gdnn_update", h);
@@ -315,7 +319,7 @@ export default function App() {
           <div style={S.tickerTrack}>
             <div style={S.tickerInner}>
               {ticker.concat(ticker).map((h,i) => (
-                <span key={i} style={S.tickerItem}>{h}<span style={{ color:"#e8b84b", margin:"0 14px" }}>●</span></span>
+                <span key={`ticker-${i}`} style={S.tickerItem}>{h}<span style={{ color:"#e8b84b", margin:"0 14px" }}>●</span></span>
               ))}
             </div>
           </div>
@@ -344,9 +348,9 @@ export default function App() {
               <span style={S.secTitle}>📢 Special Report</span>
             </div>
             {adminNews.slice(0,2).map((n,i) => (
-              <div key={i} onClick={() => setSelectedArticle({ headline: n.title, description: n.summary, thumbnail: n.image, pubDate: n.createdAt, link:"#", originalSource:"GD News Network" })}
+              <div key={n.id || i} onClick={() => setSelectedArticle({ headline: n.title, description: n.summary, thumbnail: n.image, pubDate: n.createdAt, link:"#", originalSource:"GD News Network" })}
                 style={{ ...S.heroCard, cursor:"pointer" }}>
-                {n.image && <img src={n.image} alt="" style={{ width:"100%", height:"200px", objectFit:"cover" }} />}
+                {n.image && <img src={n.image} alt="Report Thumbnail" style={{ width:"100%", height:"200px", objectFit:"cover" }} />}
                 <div style={{ padding:"12px 14px 14px" }}>
                   <span style={S.gdBadge}>GD NEWS NETWORK</span>
                   <h2 style={S.heroH}>{n.title}</h2>
@@ -380,7 +384,7 @@ export default function App() {
             <div onClick={() => setSelectedArticle(filtered[0])} style={{ ...S.heroCard, cursor:"pointer", marginBottom:"12px" }}>
               <div style={{ position:"relative", height:"220px", background:"#f0f0f0" }}>
                 {filtered[0].thumbnail
-                  ? <img src={filtered[0].thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  ? <img src={filtered[0].thumbnail} alt="Top Story" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   : <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#CC0000,#7a0000)" }} />}
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent 40%,rgba(0,0,0,0.5))" }} />
                 <span style={{ position:"absolute", top:"10px", left:"10px", background:"#CC0000", color:"#fff", fontSize:"10px", fontWeight:"800", padding:"3px 8px", borderRadius:"3px" }}>
@@ -408,10 +412,8 @@ export default function App() {
                 <div key={art.id} onClick={() => setSelectedArticle(art)}
                   style={{ background:"#fff", border:"1px solid #eee", borderRadius:"8px", overflow:"hidden", cursor:"pointer" }}>
                   {art.thumbnail
-                    ? <img src={art.thumbnail} alt="" style={{ width:"100%", height:"90px", objectFit:"cover" }} />
+                    ? <img src={art.thumbnail} alt="News Thumb" style={{ width:"100%", height:"90px", objectFit:"cover" }} />
                     : <div style={{ width:"100%", height:"90px", background:"linear-gradient(135deg,#CC0000,#7a0000)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                         <span style={{ color:"#fff", fontWeight:"800", fontSize:"18px" }}>GD</span>
                       </div>}
-                  <div style={{ padding:"8px" }}>
-                    <span style={S.gdBadge}>GD NEWS NETWORK</span>
-             
+     
