@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import Admin from './Admin.jsx'
 
-const isAdmin = window.location.pathname === '/admin'
+// Ab hum path ke sath-sath search parameter (?admin) bhi check kar rahe hain
+const isAdmin = window.location.search === '?admin' || window.location.pathname === '/admin'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
