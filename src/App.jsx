@@ -1,646 +1,480 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Clock, ExternalLink, Radio, AlertCircle, Menu, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { RefreshCw, Search, Menu, X, Clock, ExternalLink, Radio, ChevronRight, Tv } from "lucide-react";
 import { LOGO_BASE64 } from "./logoData.js";
 
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || "";
+
 const CATEGORIES = [
-  { id: "top", label: "Top Stories", query: "India" },
-  { id: "national", label: "National", query: "India national news" },
-  { id: "world", label: "World", query: "world international news" },
-  { id: "business", label: "Business", query: "India business economy" },
-  { id: "tech", label: "Technology", query: "India technology" },
-  { id: "sports", label: "Sports", query: "India sports cricket" },
-  { id: "entertainment", label: "Entertainment", query: "India entertainment bollywood" },
+  { id: "home", label: "होम / Home", labelHi: "होम", labelEn: "Home", query: "India breaking news today" },
+  { id: "local", label: "स्थानीय / Local", labelHi: "स्थानीय", labelEn: "Local", query: "local India state news today" },
+  { id: "state", label: "राज्य / State", labelHi: "राज्य", labelEn: "State", query: "India state government news" },
+  { id: "national", label: "राष्ट्रीय / National", labelHi: "राष्ट्रीय", labelEn: "National", query: "India national news today" },
+  { id: "international", label: "अंतर्राष्ट्रीय / World", labelHi: "अंतर्राष्ट्रीय", labelEn: "World", query: "world international news today" },
+  { id: "sports", label: "खेल / Sports", labelHi: "खेल", labelEn: "Sports", query: "India sports cricket news today" },
+  { id: "entertainment", label: "मनोरंजन / Entertainment", labelHi: "मनोरंजन", labelEn: "Entertainment", query: "India entertainment bollywood news" },
+  { id: "business", label: "व्यापार / Business", labelHi: "व्यापार", labelEn: "Business", query: "India business economy market news" },
+  { id: "politics", label: "राजनीति / Politics", labelHi: "राजनीति", labelEn: "Politics", query: "India politics government news today" },
+  { id: "crime", label: "अपराध / Crime", labelHi: "अपराध", labelEn: "Crime", query: "India crime police news today" },
 ];
 
-const RSS_TO_JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
+const RSS_API = "https://api.rss2json.com/v1/api.json?rss_url=";
 
-function buildFeedUrl(query) {
-  const encoded = encodeURIComponent(query);
-  return `https://news.google.com/rss/search?q=${encoded}&hl=en-IN&gl=IN&ceid=IN:en`;
+function buildFeed(query) {
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
 }
 
-function timeAgo(dateString) {
-  const diffMs = Date.now() - new Date(dateString).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "अभी / Just now";
+  if (m < 60) return `${m} मिनट पहले / ${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} घंटे पहले / ${h}h ago`;
+  return `${Math.floor(h / 24)} दिन पहले / ${Math.floor(h / 24)}d ago`;
 }
 
-function stripSourceFromTitle(title) {
+function stripSource(title) {
   const idx = title.lastIndexOf(" - ");
-  if (idx > title.length - 40 && idx > 10) {
+  if (idx > 10 && idx > title.length - 40) {
     return { headline: title.slice(0, idx), source: title.slice(idx + 3) };
   }
-  return { headline: title, source: "" };
+  return { headline: title, source: "GD News Network" };
+}
+
+// Ad Placeholder Component
+function AdBanner({ size = "leaderboard", label = "Advertisement" }) {
+  const sizes = {
+    leaderboard: { w: "100%", h: "90px", text: "728×90 Leaderboard Ad" },
+    rectangle: { w: "100%", h: "250px", text: "300×250 Rectangle Ad" },
+    halfpage: { w: "100%", h: "200px", text: "300×200 Half Page Ad" },
+    inline: { w: "100%", h: "100px", text: "Inline Ad" },
+  };
+  const s = sizes[size] || sizes.leaderboard;
+  return (
+    <div style={{
+      width: s.w, height: s.h, background: "linear-gradient(135deg, #f8f9fa, #e9ecef)",
+      border: "2px dashed #ced4da", borderRadius: "4px", display: "flex",
+      flexDirection: "column", alignItems: "center", justifyContent: "center",
+      margin: "12px 0", color: "#6c757d", fontSize: "12px", fontWeight: "600",
+      letterSpacing: "0.05em", textTransform: "uppercase",
+    }}>
+      <span style={{ fontSize: "10px", color: "#adb5bd" }}>ADVERTISEMENT</span>
+      <span style={{ fontSize: "11px", marginTop: "4px" }}>{s.text}</span>
+      <span style={{ fontSize: "10px", color: "#adb5bd", marginTop: "2px" }}>Google AdSense Slot</span>
+    </div>
+  );
 }
 
 export default function App() {
-  const [activeCategory, setActiveCategory] = useState("top");
+  const [activeCat, setActiveCat] = useState("home");
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [aiNews, setAiNews] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [adminNews, setAdminNews] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("gdnn_news") || "[]"); } catch { return []; }
+  });
 
-  const fetchNews = useCallback(async (categoryId) => {
-    setLoading(true);
-    setError(null);
-    const category = CATEGORIES.find((c) => c.id === categoryId);
+  const fetchNews = useCallback(async (catId) => {
+    setLoading(true); setError(null);
+    const cat = CATEGORIES.find(c => c.id === catId);
     try {
-      const feedUrl = buildFeedUrl(category.query);
-      const res = await fetch(RSS_TO_JSON + encodeURIComponent(feedUrl));
+      const res = await fetch(RSS_API + encodeURIComponent(buildFeed(cat.query)));
       const data = await res.json();
-      if (data.status !== "ok" || !data.items) {
-        throw new Error("Feed unavailable");
-      }
-      const cleaned = data.items.slice(0, 24).map((item, i) => {
-        const { headline, source } = stripSourceFromTitle(item.title || "");
+      if (data.status !== "ok") throw new Error("Feed error");
+      const cleaned = data.items.slice(0, 20).map((item, i) => {
+        const { headline, source } = stripSource(item.title || "");
         return {
-          id: item.guid || item.link || i,
+          id: item.guid || i,
           headline,
-          source: source || item.author || "News",
+          source: "GD News Network",
+          originalSource: source,
           link: item.link,
           pubDate: item.pubDate,
           thumbnail: item.thumbnail || item.enclosure?.link || null,
-          description: (item.description || "").replace(/<[^>]+>/g, "").slice(0, 160),
+          description: (item.description || "").replace(/<[^>]+>/g, "").slice(0, 180),
+          category: cat.labelHi,
         };
       });
       setArticles(cleaned);
       setLastUpdated(new Date());
-    } catch (e) {
-      setError("News load nahi ho payi. Connection check karke dobara try karo.");
-      setArticles([]);
-    } finally {
-      setLoading(false);
-    }
+    } catch {
+      setError("खबरें लोड नहीं हो सकीं। कृपया पुनः प्रयास करें।");
+    } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    fetchNews(activeCategory);
-  }, [activeCategory, fetchNews]);
+  const fetchAiNews = useCallback(async () => {
+    if (!GEMINI_KEY) return;
+    setAiLoading(true);
+    try {
+      const cat = CATEGORIES.find(c => c.id === activeCat);
+      const prompt = `You are a news writer for GD News Network, a Hindi-English bilingual state-level news channel in India. 
+Write 3 short news summaries about "${cat.query}" in this exact JSON format (no markdown, pure JSON):
+[{"headline":"Hindi headline here","headline_en":"English headline here","summary":"2-3 line summary in Hindi","summary_en":"2-3 line summary in English","category":"${cat.labelHi}"}]
+Make them realistic, current, and relevant to Indian readers.`;
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      });
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setAiNews(parsed);
+    } catch { setAiNews([]); }
+    finally { setAiLoading(false); }
+  }, [activeCat]);
 
+  useEffect(() => { fetchNews(activeCat); }, [activeCat, fetchNews]);
+  useEffect(() => { if (GEMINI_KEY) fetchAiNews(); }, [activeCat, fetchAiNews]);
   useEffect(() => {
-    const interval = setInterval(() => fetchNews(activeCategory), 5 * 60 * 1000);
+    const interval = setInterval(() => fetchNews(activeCat), 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [activeCategory, fetchNews]);
+  }, [activeCat, fetchNews]);
 
-  const headlineTicker = articles.slice(0, 6).map((a) => a.headline);
+  // Listen for new admin news
+  useEffect(() => {
+    const handler = () => {
+      try { setAdminNews(JSON.parse(localStorage.getItem("gdnn_news") || "[]")); } catch {}
+    };
+    window.addEventListener("storage", handler);
+    window.addEventListener("gdnn_update", handler);
+    return () => { window.removeEventListener("storage", handler); window.removeEventListener("gdnn_update", handler); };
+  }, []);
+
+  const filteredArticles = searchQuery
+    ? articles.filter(a => a.headline.toLowerCase().includes(searchQuery.toLowerCase()))
+    : articles;
+
+  const ticker = [...adminNews.slice(0, 3), ...articles.slice(0, 5)].map(a => a.headline || a.title);
 
   return (
-    <div style={styles.page}>
-      <style>{fontImports}</style>
+    <div style={S.page}>
+      <style>{CSS}</style>
 
-      {/* Top bar */}
-      <header style={styles.topbar}>
-        <div style={styles.topbarInner}>
-          <button
-            style={styles.menuBtn}
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle menu"
-          >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+      {/* TOP BAR */}
+      <div style={S.topBar}>
+        <div style={S.topBarInner}>
+          <span style={S.topDate}>{new Date().toLocaleDateString("hi-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+          <span style={S.topDate}>|</span>
+          <span style={S.topDate}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+        </div>
+      </div>
+
+      {/* HEADER */}
+      <header style={S.header}>
+        <div style={S.headerInner}>
+          <button style={S.iconBtn} onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
-
-          <div style={styles.brandBlock}>
-            <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News Network" style={styles.logoImg} />
+          <div style={S.logoWrap}>
+            <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News Network" style={S.logo} />
           </div>
-
-          <button
-            onClick={() => fetchNews(activeCategory)}
-            style={styles.refreshBtn}
-            aria-label="Refresh news"
-          >
-            <RefreshCw size={16} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
-          </button>
+          <div style={S.headerRight}>
+            <button style={S.iconBtn} onClick={() => setSearchOpen(!searchOpen)}>
+              <Search size={20} />
+            </button>
+            <button style={S.iconBtn} onClick={() => fetchNews(activeCat)} title="Refresh">
+              <RefreshCw size={18} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+            </button>
+          </div>
         </div>
 
-        {/* Slide-down category menu */}
+        {/* Search Bar */}
+        {searchOpen && (
+          <div style={S.searchBar}>
+            <input
+              style={S.searchInput}
+              placeholder="खबरें खोजें / Search news..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {/* Mobile Menu */}
         {menuOpen && (
-          <div style={styles.menuDrawer}>
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  setMenuOpen(false);
-                }}
-                style={{
-                  ...styles.menuItem,
-                  ...(activeCategory === cat.id ? styles.menuItemActive : {}),
-                }}
-              >
-                {cat.label}
+          <nav style={S.mobileMenu}>
+            {CATEGORIES.map(cat => (
+              <button key={cat.id} style={{ ...S.menuItem, ...(activeCat === cat.id ? S.menuItemActive : {}) }}
+                onClick={() => { setActiveCat(cat.id); setMenuOpen(false); }}>
+                {cat.labelHi} / {cat.labelEn}
               </button>
             ))}
-          </div>
+          </nav>
         )}
       </header>
 
-      {/* Breaking ticker */}
-      {headlineTicker.length > 0 && (
-        <div style={styles.tickerWrap}>
-          <span style={styles.tickerLabel}>
-            <Radio size={12} style={{ marginRight: 5 }} />
-            LIVE
-          </span>
-          <div style={styles.tickerTrack}>
-            <div style={styles.tickerContent}>
-              {headlineTicker.concat(headlineTicker).map((h, i) => (
-                <span key={i} style={styles.tickerItem}>
-                  {h} <span style={styles.tickerDot}>●</span>
-                </span>
+      {/* LEADERBOARD AD */}
+      <div style={{ padding: "0 12px" }}>
+        <AdBanner size="leaderboard" />
+      </div>
+
+      {/* BREAKING NEWS TICKER */}
+      {ticker.length > 0 && (
+        <div style={S.ticker}>
+          <span style={S.tickerLabel}><Radio size={12} style={{ marginRight: 4 }} />ब्रेकिंग</span>
+          <div style={S.tickerTrack}>
+            <div style={S.tickerContent}>
+              {ticker.concat(ticker).map((h, i) => (
+                <span key={i} style={S.tickerItem}>{h} <span style={{ color: "#e8b84b", margin: "0 16px" }}>●</span></span>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Category tabs (desktop-friendly horizontal scroll) */}
-      <nav style={styles.tabsNav}>
-        <div style={styles.tabsScroll}>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              style={{
-                ...styles.tab,
-                ...(activeCategory === cat.id ? styles.tabActive : {}),
-              }}
-            >
-              {cat.label}
+      {/* CATEGORY NAV */}
+      <nav style={S.catNav}>
+        <div style={S.catScroll}>
+          {CATEGORIES.map(cat => (
+            <button key={cat.id}
+              style={{ ...S.catBtn, ...(activeCat === cat.id ? S.catBtnActive : {}) }}
+              onClick={() => setActiveCat(cat.id)}>
+              {cat.labelHi}
             </button>
           ))}
         </div>
       </nav>
 
-      {/* Content */}
-      <main style={styles.main}>
-        {lastUpdated && (
-          <div style={styles.updatedRow}>
-            <span style={styles.updatedText}>Updated {timeAgo(lastUpdated.toISOString())}</span>
-            <span style={styles.liveDot}></span>
-          </div>
+      {/* MAIN CONTENT */}
+      <main style={S.main}>
+        {/* ADMIN NEWS (if any) */}
+        {adminNews.length > 0 && (
+          <section style={{ marginBottom: "20px" }}>
+            <div style={S.sectionHead}>
+              <span style={S.sectionTitle}>📢 GD News Network — विशेष खबर</span>
+            </div>
+            {adminNews.slice(0, 3).map((news, i) => (
+              <div key={i} style={S.adminCard}>
+                {news.image && <img src={news.image} alt="" style={S.adminCardImg} />}
+                <div style={S.adminCardBody}>
+                  <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
+                  <h2 style={S.adminCardHeadline}>{news.title}</h2>
+                  <p style={S.adminCardSummary}>{news.summary}</p>
+                  <span style={S.timeTag}><Clock size={11} style={{ marginRight: 3 }} />{timeAgo(news.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {/* AI NEWS */}
+        {aiNews.length > 0 && (
+          <section style={{ marginBottom: "20px" }}>
+            <div style={S.sectionHead}>
+              <span style={S.sectionTitle}>🤖 AI संपादित खबरें / AI Curated</span>
+            </div>
+            <div style={S.aiGrid}>
+              {aiNews.map((n, i) => (
+                <div key={i} style={S.aiCard}>
+                  <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
+                  <h3 style={S.aiCardHeadline}>{n.headline}</h3>
+                  <p style={S.aiCardHeadlineEn}>{n.headline_en}</p>
+                  <p style={S.aiCardSummary}>{n.summary}</p>
+                  <p style={S.aiCardSummaryEn}>{n.summary_en}</p>
+                </div>
+              ))}
+            </div>
+            {/* RECTANGLE AD after AI news */}
+            <AdBanner size="rectangle" />
+          </section>
         )}
 
         {loading && articles.length === 0 && (
-          <div style={styles.stateBox}>
-            <RefreshCw size={24} style={{ animation: "spin 1s linear infinite", color: "#E8B84B" }} />
-            <p style={styles.stateText}>Taaza khabrein la rahe hain...</p>
+          <div style={S.stateBox}>
+            <RefreshCw size={28} style={{ animation: "spin 1s linear infinite", color: "#c00" }} />
+            <p style={S.stateText}>खबरें लोड हो रही हैं... / Loading news...</p>
           </div>
         )}
 
         {error && (
-          <div style={styles.stateBox}>
-            <AlertCircle size={24} style={{ color: "#E63946" }} />
-            <p style={styles.stateText}>{error}</p>
-            <button onClick={() => fetchNews(activeCategory)} style={styles.retryBtn}>
-              Try Again
-            </button>
+          <div style={S.stateBox}>
+            <p style={{ color: "#c00", fontWeight: "700" }}>{error}</p>
+            <button style={S.retryBtn} onClick={() => fetchNews(activeCat)}>पुनः प्रयास / Retry</button>
           </div>
         )}
 
-        {!loading && !error && articles.length > 0 && (
+        {!loading && !error && filteredArticles.length > 0 && (
           <>
-            {/* Featured hero article */}
-            <a href={articles[0].link} target="_blank" rel="noopener noreferrer" style={styles.featuredCard}>
-              <div style={styles.featuredImgWrap}>
-                {articles[0].thumbnail ? (
-                  <img src={articles[0].thumbnail} alt="" style={styles.featuredImg} />
-                ) : (
-                  <div style={styles.featuredImgFallback} />
-                )}
-                <div style={styles.featuredGradient} />
-                <span style={styles.breakingBadge}>BREAKING</span>
+            {/* HERO */}
+            <a href={filteredArticles[0].link} target="_blank" rel="noopener noreferrer" style={S.hero}>
+              <div style={S.heroImgWrap}>
+                {filteredArticles[0].thumbnail
+                  ? <img src={filteredArticles[0].thumbnail} alt="" style={S.heroImg} />
+                  : <div style={S.heroImgFallback} />}
+                <div style={S.heroGrad} />
+                <span style={S.breakingTag}>ब्रेकिंग न्यूज</span>
+                <span style={S.catTag}>{filteredArticles[0].category}</span>
               </div>
-              <div style={styles.featuredBody}>
-                <span style={styles.sourceTag}>{articles[0].source}</span>
-                <h2 style={styles.featuredHeadline}>{articles[0].headline}</h2>
-                {articles[0].description && (
-                  <p style={styles.featuredDesc}>{articles[0].description}...</p>
-                )}
-                <span style={styles.timeTag}>
+              <div style={S.heroBody}>
+                <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
+                <h1 style={S.heroHeadline}>{filteredArticles[0].headline}</h1>
+                <p style={S.heroDesc}>{filteredArticles[0].description}...</p>
+                <div style={S.heroMeta}>
                   <Clock size={12} style={{ marginRight: 4 }} />
-                  {timeAgo(articles[0].pubDate)}
-                </span>
+                  <span>{timeAgo(filteredArticles[0].pubDate)}</span>
+                  <span style={{ margin: "0 8px" }}>|</span>
+                  <span style={{ color: "#999", fontSize: "11px" }}>Source: {filteredArticles[0].originalSource}</span>
+                </div>
               </div>
             </a>
 
-            {/* Grid of remaining articles */}
-            <div style={styles.grid}>
-              {articles.slice(1).map((article) => (
-                <a
-                  key={article.id}
-                  href={article.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={styles.card}
-                >
-                  {article.thumbnail ? (
-                    <img src={article.thumbnail} alt="" style={styles.cardImg} />
-                  ) : (
-                    <div style={styles.cardImgFallback}>
-                      <span style={styles.fallbackInitial}>{article.source[0] || "N"}</span>
-                    </div>
-                  )}
-                  <div style={styles.cardBody}>
-                    <span style={styles.sourceTag}>{article.source}</span>
-                    <h3 style={styles.cardHeadline}>{article.headline}</h3>
-                    <div style={styles.cardFooter}>
-                      <span style={styles.timeTag}>
-                        <Clock size={11} style={{ marginRight: 3 }} />
-                        {timeAgo(article.pubDate)}
-                      </span>
-                      <ExternalLink size={12} color="#8A8580" />
-                    </div>
+            {/* INLINE AD */}
+            <AdBanner size="inline" />
+
+            {/* TOP 3 CARDS */}
+            <div style={S.topGrid}>
+              {filteredArticles.slice(1, 4).map(art => (
+                <a key={art.id} href={art.link} target="_blank" rel="noopener noreferrer" style={S.topCard}>
+                  {art.thumbnail ? <img src={art.thumbnail} alt="" style={S.topCardImg} /> : <div style={S.topCardImgFb} />}
+                  <div style={S.topCardBody}>
+                    <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
+                    <h3 style={S.topCardHeadline}>{art.headline}</h3>
+                    <span style={S.timeTag}><Clock size={10} style={{ marginRight: 2 }} />{timeAgo(art.pubDate)}</span>
                   </div>
                 </a>
               ))}
             </div>
+
+            {/* RECTANGLE AD */}
+            <AdBanner size="rectangle" />
+
+            {/* NEWS LIST */}
+            <div style={S.sectionHead}>
+              <span style={S.sectionTitle}>सभी खबरें / All News</span>
+              <span style={S.sectionMore}>और देखें <ChevronRight size={14} /></span>
+            </div>
+
+            {filteredArticles.slice(4).map((art, idx) => (
+              <div key={art.id}>
+                <a href={art.link} target="_blank" rel="noopener noreferrer" style={S.listCard}>
+                  {art.thumbnail
+                    ? <img src={art.thumbnail} alt="" style={S.listCardImg} />
+                    : <div style={S.listCardImgFb}><span style={{ color: "#c00", fontWeight: "800", fontSize: "20px" }}>GD</span></div>}
+                  <div style={S.listCardBody}>
+                    <span style={S.gdnnBadge}>GD NEWS NETWORK</span>
+                    <h3 style={S.listCardHeadline}>{art.headline}</h3>
+                    <div style={S.listCardMeta}>
+                      <span style={S.timeTag}><Clock size={10} style={{ marginRight: 2 }} />{timeAgo(art.pubDate)}</span>
+                      <ExternalLink size={11} color="#aaa" />
+                    </div>
+                  </div>
+                </a>
+                {/* Ad every 5 articles */}
+                {(idx + 1) % 5 === 0 && <AdBanner size="inline" />}
+              </div>
+            ))}
           </>
         )}
       </main>
 
-      <footer style={styles.footer}>
-        <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News Network" style={styles.footerLogo} />
-        <p style={styles.footerText}>Headlines aggregated via Google News RSS. Full stories open on publisher sites.</p>
+      {/* FOOTER */}
+      <footer style={S.footer}>
+        <AdBanner size="leaderboard" />
+        <img src={`data:image/png;base64,${LOGO_BASE64}`} alt="GD News Network" style={{ height: "36px", objectFit: "contain", marginBottom: "8px" }} />
+        <p style={{ fontSize: "12px", color: "#666", margin: "4px 0" }}>GD News Network — आपकी अपनी खबर / Your Trusted News Source</p>
+        <p style={{ fontSize: "11px", color: "#aaa", margin: "2px 0" }}>© 2025 GD News Network. All Rights Reserved.</p>
+        <p style={{ fontSize: "10px", color: "#bbb", marginTop: "6px" }}>Headlines aggregated via Google News. Full stories on publisher sites.</p>
       </footer>
     </div>
   );
 }
 
-const fontImports = `
-  @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&display=swap');
+const RED = "#CC0000";
+const GOLD = "#E8B84B";
+const DARK = "#1A1A1A";
+const WHITE = "#FFFFFF";
+const LIGHTGRAY = "#F5F5F5";
+const BORDER = "#E0E0E0";
+
+const S = {
+  page: { background: WHITE, fontFamily: "'Noto Sans', 'Inter', sans-serif", color: DARK, minHeight: "100vh" },
+  topBar: { background: DARK, padding: "4px 12px" },
+  topBarInner: { display: "flex", gap: "8px", maxWidth: "760px", margin: "0 auto", alignItems: "center" },
+  topDate: { fontSize: "10px", color: "#aaa", whiteSpace: "nowrap" },
+  header: { background: WHITE, borderBottom: `3px solid ${RED}`, position: "sticky", top: 0, zIndex: 30, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" },
+  headerInner: { maxWidth: "760px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px" },
+  logoWrap: { flex: 1, display: "flex", justifyContent: "center" },
+  logo: { height: "44px", width: "auto", objectFit: "contain" },
+  headerRight: { display: "flex", gap: "4px", alignItems: "center" },
+  iconBtn: { background: "none", border: "none", cursor: "pointer", padding: "6px", color: DARK, borderRadius: "6px" },
+  searchBar: { padding: "8px 12px", borderTop: `1px solid ${BORDER}`, background: LIGHTGRAY },
+  searchInput: { width: "100%", padding: "8px 12px", border: `1px solid ${BORDER}`, borderRadius: "20px", fontSize: "14px", outline: "none", boxSizing: "border-box" },
+  mobileMenu: { background: WHITE, borderTop: `1px solid ${BORDER}`, maxHeight: "60vh", overflowY: "auto" },
+  menuItem: { display: "block", width: "100%", textAlign: "left", padding: "12px 16px", background: "none", border: "none", borderBottom: `1px solid ${BORDER}`, fontSize: "14px", cursor: "pointer", color: DARK },
+  menuItemActive: { color: RED, fontWeight: "700", background: "#fff5f5" },
+  ticker: { display: "flex", alignItems: "center", background: RED, overflow: "hidden", height: "32px" },
+  tickerLabel: { display: "flex", alignItems: "center", background: DARK, color: GOLD, fontSize: "11px", fontWeight: "800", padding: "0 12px", height: "100%", flexShrink: 0, whiteSpace: "nowrap" },
+  tickerTrack: { overflow: "hidden", flex: 1, height: "100%", display: "flex", alignItems: "center" },
+  tickerContent: { display: "flex", whiteSpace: "nowrap", animation: "ticker 40s linear infinite" },
+  tickerItem: { color: WHITE, fontSize: "12px", paddingRight: "16px", fontWeight: "500" },
+  catNav: { background: WHITE, borderBottom: `1px solid ${BORDER}`, position: "sticky", top: "66px", zIndex: 20 },
+  catScroll: { maxWidth: "760px", margin: "0 auto", display: "flex", overflowX: "auto", padding: "0 8px", gap: "2px", scrollbarWidth: "none" },
+  catBtn: { background: "none", border: "none", padding: "10px 12px", fontSize: "13px", fontWeight: "600", color: "#666", cursor: "pointer", whiteSpace: "nowrap", borderBottom: "2.5px solid transparent" },
+  catBtnActive: { color: RED, borderBottom: `2.5px solid ${RED}` },
+  main: { maxWidth: "760px", margin: "0 auto", padding: "12px 12px 40px" },
+  sectionHead: { display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: `4px solid ${RED}`, paddingLeft: "8px", margin: "16px 0 10px" },
+  sectionTitle: { fontWeight: "800", fontSize: "14px", color: DARK },
+  sectionMore: { fontSize: "12px", color: RED, display: "flex", alignItems: "center", cursor: "pointer" },
+  gdnnBadge: { fontSize: "9.5px", fontWeight: "800", color: RED, letterSpacing: "0.06em", display: "block", marginBottom: "4px" },
+  hero: { display: "block", background: WHITE, border: `1px solid ${BORDER}`, borderRadius: "8px", overflow: "hidden", marginBottom: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" },
+  heroImgWrap: { position: "relative", width: "100%", height: "220px", background: "#f0f0f0" },
+  heroImg: { width: "100%", height: "100%", objectFit: "cover" },
+  heroImgFallback: { width: "100%", height: "100%", background: `linear-gradient(135deg, ${RED}, #7a0000)` },
+  heroGrad: { position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.4) 100%)" },
+  breakingTag: { position: "absolute", top: "10px", left: "10px", background: RED, color: WHITE, fontSize: "10px", fontWeight: "800", padding: "3px 8px", borderRadius: "3px" },
+  catTag: { position: "absolute", top: "10px", right: "10px", background: "rgba(0,0,0,0.6)", color: WHITE, fontSize: "10px", fontWeight: "600", padding: "3px 8px", borderRadius: "3px" },
+  heroBody: { padding: "14px 14px 16px" },
+  heroHeadline: { fontSize: "18px", fontWeight: "800", lineHeight: 1.3, color: DARK, margin: "4px 0 8px" },
+  heroDesc: { fontSize: "13px", color: "#555", lineHeight: 1.5, margin: "0 0 8px" },
+  heroMeta: { display: "flex", alignItems: "center", fontSize: "11px", color: "#888" },
+  topGrid: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "12px" },
+  topCard: { display: "block", background: WHITE, border: `1px solid ${BORDER}`, borderRadius: "6px", overflow: "hidden", textDecoration: "none" },
+  topCardImg: { width: "100%", height: "80px", objectFit: "cover" },
+  topCardImgFb: { width: "100%", height: "80px", background: `linear-gradient(135deg, ${RED}, #7a0000)` },
+  topCardBody: { padding: "8px" },
+  topCardHeadline: { fontSize: "11px", fontWeight: "700", lineHeight: 1.3, color: DARK, margin: "3px 0 4px", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  listCard: { display: "flex", gap: "10px", background: WHITE, borderBottom: `1px solid ${BORDER}`, padding: "12px 0", textDecoration: "none" },
+  listCardImg: { width: "90px", height: "65px", objectFit: "cover", borderRadius: "4px", flexShrink: 0 },
+  listCardImgFb: { width: "90px", height: "65px", borderRadius: "4px", flexShrink: 0, background: `linear-gradient(135deg, ${RED}, #7a0000)`, display: "flex", alignItems: "center", justifyContent: "center" },
+  listCardBody: { flex: 1, minWidth: 0 },
+  listCardHeadline: { fontSize: "14px", fontWeight: "700", lineHeight: 1.3, color: DARK, margin: "3px 0 6px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  listCardMeta: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  timeTag: { fontSize: "11px", color: "#888", display: "inline-flex", alignItems: "center" },
+  adminCard: { background: "#fff8f8", border: `2px solid ${RED}`, borderRadius: "8px", overflow: "hidden", marginBottom: "10px" },
+  adminCardImg: { width: "100%", height: "180px", objectFit: "cover" },
+  adminCardBody: { padding: "12px 14px 14px" },
+  adminCardHeadline: { fontSize: "17px", fontWeight: "800", lineHeight: 1.3, color: DARK, margin: "4px 0 6px" },
+  adminCardSummary: { fontSize: "13px", color: "#444", lineHeight: 1.5 },
+  aiGrid: { display: "grid", gridTemplateColumns: "1fr", gap: "10px" },
+  aiCard: { background: "#f8fff8", border: "1px solid #c8e6c9", borderRadius: "6px", padding: "12px" },
+  aiCardHeadline: { fontSize: "15px", fontWeight: "800", color: DARK, margin: "4px 0 2px" },
+  aiCardHeadlineEn: { fontSize: "13px", fontWeight: "600", color: "#555", margin: "0 0 6px", fontStyle: "italic" },
+  aiCardSummary: { fontSize: "13px", color: "#333", lineHeight: 1.5, margin: "4px 0 2px" },
+  aiCardSummaryEn: { fontSize: "12px", color: "#666", lineHeight: 1.5, margin: "0" },
+  stateBox: { display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", padding: "60px 20px", textAlign: "center" },
+  stateText: { color: "#666", fontSize: "14px" },
+  retryBtn: { background: RED, color: WHITE, border: "none", padding: "8px 20px", borderRadius: "6px", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
+  footer: { background: DARK, padding: "20px 16px", textAlign: "center", color: WHITE },
+};
+
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700;800&display=swap');
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   * { box-sizing: border-box; }
   body { margin: 0; }
   a { text-decoration: none; color: inherit; }
+  ::-webkit-scrollbar { display: none; }
+  @media (max-width: 600px) {
+    .top-grid { grid-template-columns: 1fr 1fr !important; }
+  }
 `;
-
-const RED = "#B91C1C";
-const RED_DEEP = "#7F1212";
-const GOLD = "#E8B84B";
-const INK = "#121214";
-const CHARCOAL = "#1C1C20";
-const CARD = "#1F1F24";
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: INK,
-    fontFamily: "'Inter', -apple-system, sans-serif",
-    color: "#EDEAE3",
-  },
-  topbar: {
-    background: `linear-gradient(180deg, ${CHARCOAL} 0%, ${INK} 100%)`,
-    borderBottom: `2px solid ${GOLD}`,
-    position: "sticky",
-    top: 0,
-    zIndex: 20,
-  },
-  topbarInner: {
-    maxWidth: 760,
-    margin: "0 auto",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "10px 14px",
-  },
-  menuBtn: {
-    background: "rgba(232,184,75,0.08)",
-    border: "1px solid rgba(232,184,75,0.25)",
-    borderRadius: 8,
-    width: 36,
-    height: 36,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: GOLD,
-    cursor: "pointer",
-    flexShrink: 0,
-  },
-  brandBlock: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flex: 1,
-  },
-  logoImg: {
-    height: 42,
-    width: "auto",
-    objectFit: "contain",
-  },
-  refreshBtn: {
-    background: "rgba(232,184,75,0.08)",
-    border: "1px solid rgba(232,184,75,0.25)",
-    borderRadius: 8,
-    width: 36,
-    height: 36,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: GOLD,
-    cursor: "pointer",
-    flexShrink: 0,
-  },
-  menuDrawer: {
-    maxWidth: 760,
-    margin: "0 auto",
-    display: "flex",
-    flexDirection: "column",
-    borderTop: "1px solid rgba(232,184,75,0.15)",
-  },
-  menuItem: {
-    background: "none",
-    border: "none",
-    borderBottom: "1px solid rgba(232,184,75,0.08)",
-    color: "#C9C5BC",
-    textAlign: "left",
-    padding: "13px 18px",
-    fontSize: 14.5,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  menuItemActive: {
-    color: GOLD,
-    background: "rgba(232,184,75,0.06)",
-  },
-  tickerWrap: {
-    display: "flex",
-    alignItems: "center",
-    background: `linear-gradient(90deg, ${RED_DEEP}, ${RED})`,
-    overflow: "hidden",
-    height: 32,
-  },
-  tickerLabel: {
-    display: "flex",
-    alignItems: "center",
-    background: INK,
-    color: GOLD,
-    fontSize: 10.5,
-    fontWeight: 800,
-    letterSpacing: "0.06em",
-    padding: "0 12px",
-    height: "100%",
-    flexShrink: 0,
-  },
-  tickerTrack: {
-    overflow: "hidden",
-    flex: 1,
-    height: "100%",
-    display: "flex",
-    alignItems: "center",
-  },
-  tickerContent: {
-    display: "flex",
-    whiteSpace: "nowrap",
-    animation: "tickerScroll 38s linear infinite",
-  },
-  tickerItem: {
-    color: "#FBF0DC",
-    fontSize: 12.5,
-    paddingRight: 26,
-    fontWeight: 500,
-  },
-  tickerDot: {
-    color: GOLD,
-    marginLeft: 26,
-    fontSize: 7,
-  },
-  tabsNav: {
-    background: CHARCOAL,
-    borderBottom: "1px solid rgba(232,184,75,0.12)",
-    position: "sticky",
-    top: 0,
-    zIndex: 10,
-  },
-  tabsScroll: {
-    maxWidth: 760,
-    margin: "0 auto",
-    display: "flex",
-    overflowX: "auto",
-    padding: "0 14px",
-    gap: 2,
-    scrollbarWidth: "none",
-  },
-  tab: {
-    background: "none",
-    border: "none",
-    padding: "12px 13px",
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#7C7870",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    borderBottom: "2.5px solid transparent",
-    fontFamily: "'Inter', sans-serif",
-    letterSpacing: "0.01em",
-  },
-  tabActive: {
-    color: GOLD,
-    borderBottom: `2.5px solid ${RED}`,
-  },
-  main: {
-    maxWidth: 760,
-    margin: "0 auto",
-    padding: "16px 14px 40px",
-  },
-  updatedRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 6,
-    marginBottom: 12,
-  },
-  updatedText: {
-    fontSize: 11,
-    color: "#7C7870",
-    fontWeight: 500,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "#4ADE80",
-    animation: "pulse 2s ease-in-out infinite",
-  },
-  stateBox: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 12,
-    padding: "60px 20px",
-    textAlign: "center",
-  },
-  stateText: {
-    color: "#9A958C",
-    fontSize: 14,
-  },
-  retryBtn: {
-    background: RED,
-    color: "#fff",
-    border: "none",
-    padding: "9px 20px",
-    borderRadius: 6,
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  featuredCard: {
-    display: "block",
-    background: CARD,
-    border: "1px solid rgba(232,184,75,0.15)",
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 20,
-    boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-  },
-  featuredImgWrap: {
-    position: "relative",
-    width: "100%",
-    height: 200,
-    background: "#2A2A30",
-  },
-  featuredImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-  },
-  featuredImgFallback: {
-    width: "100%",
-    height: "100%",
-    background: `linear-gradient(135deg, ${RED_DEEP}, ${INK})`,
-  },
-  featuredGradient: {
-    position: "absolute",
-    inset: 0,
-    background: "linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(18,18,20,0.6) 100%)",
-  },
-  breakingBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    background: RED,
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: "0.05em",
-    padding: "4px 10px",
-    borderRadius: 4,
-  },
-  featuredBody: {
-    padding: "16px 18px 18px",
-  },
-  sourceTag: {
-    fontSize: 10.5,
-    fontWeight: 800,
-    color: GOLD,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-  },
-  featuredHeadline: {
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 20,
-    fontWeight: 800,
-    lineHeight: 1.28,
-    color: "#F5F2EA",
-    margin: "7px 0 8px",
-    letterSpacing: "-0.01em",
-  },
-  featuredDesc: {
-    fontSize: 13.5,
-    color: "#A8A39A",
-    lineHeight: 1.5,
-    margin: "0 0 10px",
-  },
-  timeTag: {
-    fontSize: 11.5,
-    color: "#7C7870",
-    display: "inline-flex",
-    alignItems: "center",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: 12,
-  },
-  card: {
-    display: "flex",
-    gap: 12,
-    background: CARD,
-    border: "1px solid rgba(232,184,75,0.1)",
-    borderRadius: 10,
-    overflow: "hidden",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-  },
-  cardImg: {
-    width: 92,
-    height: 92,
-    objectFit: "cover",
-    flexShrink: 0,
-    background: "#2A2A30",
-  },
-  cardImgFallback: {
-    width: 92,
-    height: 92,
-    flexShrink: 0,
-    background: `linear-gradient(135deg, ${RED}, ${RED_DEEP})`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fallbackInitial: {
-    color: GOLD,
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 26,
-    fontWeight: 800,
-  },
-  cardBody: {
-    padding: "10px 12px 10px 0",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    flex: 1,
-    minWidth: 0,
-  },
-  cardHeadline: {
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 14,
-    fontWeight: 700,
-    lineHeight: 1.32,
-    color: "#E8E5DE",
-    margin: "4px 0 6px",
-    display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-  },
-  cardFooter: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  footer: {
-    textAlign: "center",
-    padding: "26px 20px",
-    borderTop: "1px solid rgba(232,184,75,0.1)",
-  },
-  footerLogo: {
-    height: 30,
-    width: "auto",
-    objectFit: "contain",
-    opacity: 0.85,
-    marginBottom: 10,
-  },
-  footerText: {
-    fontSize: 11,
-    color: "#6B6760",
-    margin: 0,
-  },
-};
