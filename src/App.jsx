@@ -4,23 +4,31 @@ import { LOGO_BASE64 } from "./logoData.js";
 
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || "";
 
+const LANGUAGES = [
+  { code: "hi", label: "हिंदी", params: "&hl=hi&gl=IN&ceid=IN:hi" },
+  { code: "en", label: "English", params: "&hl=en-IN&gl=IN&ceid=IN:en" },
+  { code: "mr", label: "मराठी", params: "&hl=mr&gl=IN&ceid=IN:mr" },
+  { code: "bn", label: "বাংলা", params: "&hl=bn&gl=IN&ceid=IN:bn" },
+];
+
 const CATEGORIES = [
-  { id: "home",          hi: "होम",           en: "Home",          query: "India breaking news today" },
-  { id: "local",         hi: "स्थानीय",       en: "Local",         query: "local India city news today" },
-  { id: "state",         hi: "राज्य",         en: "State",         query: "India state government news today" },
-  { id: "national",      hi: "राष्ट्रीय",     en: "National",      query: "India national news today" },
-  { id: "international", hi: "अंतर्राष्ट्रीय", en: "World",        query: "world international news today" },
-  { id: "sports",        hi: "खेल",           en: "Sports",        query: "India cricket sports news today" },
-  { id: "entertainment", hi: "मनोरंजन",       en: "Entertainment", query: "India bollywood entertainment news" },
-  { id: "business",      hi: "व्यापार",       en: "Business",      query: "India business economy stock news" },
-  { id: "politics",      hi: "राजनीति",       en: "Politics",      query: "India politics BJP Congress news" },
-  { id: "crime",         hi: "क्राइम",         en: "Crime",         query: "India crime police news today" },
+  { id: "home",          hi: "होम",           en: "Home",          mr: "मुख्यपृष्ठ",    bn: "होम",         query: "India breaking news today" },
+  { id: "local",         hi: "स्थानीय",       en: "Local",         mr: "स्थानिक",       bn: "स्थानीय",       query: "local India city news today" },
+  { id: "state",         hi: "राज्य",         en: "State",         mr: "राज्य",         bn: "राज्य",         query: "India state government news today" },
+  { id: "national",      hi: "राष्ट्रीय",     en: "National",      mr: "राष्ट्रीय",     bn: "জাতীয়",        query: "India national news today" },
+  { id: "international", hi: "अंतर्राष्ट्रीय", en: "World",        mr: "आंतरराष्ट्रीय",  bn: "আন্তর্জাতিক", query: "world international news today" },
+  { id: "sports",        hi: "खेल",           en: "Sports",        mr: "क्रीडा",        bn: "খেলাধুলা",      query: "India cricket sports news today" },
+  { id: "entertainment", hi: "मनोरंजन",       en: "Entertainment", mr: "मनोरंजन",      bn: "বিনোদন",       query: "India bollywood entertainment news" },
+  { id: "business",      hi: "व्यापार",       en: "Business",      mr: "व्यापार",       bn: "ব্যবসা",        query: "India business economy stock news" },
+  { id: "politics",      hi: "राजनीति",       en: "Politics",      mr: "राजकारण",      bn: "রাজনীতি",       query: "India politics BJP Congress news" },
+  { id: "crime",         hi: "क्राइम",         en: "Crime",         mr: "गुन्हेगारी",     bn: "অপরাধ",        query: "India crime police news today" },
 ];
 
 const RSS_API = "https://api.rss2json.com/v1/api.json?rss_url=";
 
-function buildFeed(query) {
-  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
+function buildFeed(query, langCode) {
+  const langObj = LANGUAGES.find(l => l.code === langCode) || LANGUAGES[0];
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}${langObj.params}`;
 }
 
 function timeAgo(dateStr, lang) {
@@ -59,9 +67,8 @@ function ArticleReader({ article, lang, onBack, geminiKey }) {
     setLoading(true);
     const generate = async () => {
       try {
-        const prompt = lang === "hi"
-          ? `तुम GD News Network के वरिष्ठ पत्रकार हो। नीचे दी गई खबर को पूरी तरह विस्तृत करो। एक professional Hindi news article लिखो जिसमें हो: पूरी खबर का विवरण, background, impact, और expert opinion। Article 300-400 शब्दों का हो। Headline: "${article.headline}". Summary: "${article.description}".  केवल article text लिखो, कोई heading या formatting नहीं।`
-          : `You are a senior journalist at GD News Network. Write a complete, detailed news article based on this headline and summary. Include: full story, background context, impact, and analysis. 300-400 words. Professional English news style. Headline: "${article.headline}". Summary: "${article.description}". Only write the article body, no headings or formatting.`;
+        const langLabel = LANGUAGES.find(l => l.code === lang)?.label || "Hindi";
+        const prompt = `You are a senior journalist at GD News Network. Write a complete, detailed news article based on this headline and summary in ${langLabel} language. Include: full story, background context, impact, and analysis. 300-400 words. Professional news style. Headline: "${article.headline}". Summary: "${article.description}". Only write the article body, no headings or formatting.`;
         
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
           method: "POST",
@@ -128,7 +135,6 @@ function ArticleReader({ article, lang, onBack, geminiKey }) {
           </div>
         )}
 
-        {/* Ad */}
         <AdBanner size="inline" />
 
         {/* Article Content */}
@@ -136,7 +142,7 @@ function ArticleReader({ article, lang, onBack, geminiKey }) {
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"40px 0", gap:"12px" }}>
             <RefreshCw size={24} style={{ animation:"spin 1s linear infinite", color:"#CC0000" }} />
             <p style={{ color:"#888", fontSize:"13px" }}>
-              {lang === "hi" ? "AI पूरी खबर तैयार कर रहा है..." : "AI is generating full article..."}
+              AI is generating full article...
             </p>
           </div>
         ) : (
@@ -147,17 +153,16 @@ function ArticleReader({ article, lang, onBack, geminiKey }) {
           </div>
         )}
 
-        {/* Ad */}
         <AdBanner size="rectangle" />
 
         {/* Source */}
         <div style={{ borderTop:"1px solid #eee", paddingTop:"12px", marginTop:"8px" }}>
           <p style={{ fontSize:"12px", color:"#aaa" }}>
-            {lang === "hi" ? "स्रोत: " : "Source: "}{article.originalSource}
+            Source: {article.originalSource}
           </p>
           <a href={article.link} target="_blank" rel="noopener noreferrer"
             style={{ fontSize:"13px", color:"#CC0000", fontWeight:"600", display:"flex", alignItems:"center", gap:"4px" }}>
-            {lang === "hi" ? "मूल खबर पढ़ें →" : "Read Original Story →"}
+            Read Original Story →
           </a>
         </div>
       </div>
@@ -184,7 +189,7 @@ export default function App() {
     setLoading(true); setError(null);
     const cat = CATEGORIES.find(c => c.id === catId);
     try {
-      const url = RSS_API + encodeURIComponent(buildFeed(cat.query));
+      const url = RSS_API + encodeURIComponent(buildFeed(cat.query, lang));
       const res = await fetch(url);
       const data = await res.json();
       if (data.status !== "ok" || !data.items?.length) throw new Error("No data");
@@ -201,16 +206,16 @@ export default function App() {
           pubDate: item.pubDate,
           thumbnail: item.thumbnail || item.enclosure?.link || null,
           description: (item.description || "").replace(/<[^>]+>/g, "").slice(0, 250),
-          category: lang === "hi" ? cat.hi : cat.en,
+          category: cat[lang] || cat.en,
         };
       });
       setArticles(cleaned);
     } catch {
-      setError(lang === "hi" ? "खबरें लोड नहीं हो सकीं।" : "Could not load news.");
+      setError("Could not load news.");
     } finally { setLoading(false); }
   }, [lang]);
 
-  useEffect(() => { fetchNews(activeCat); }, [activeCat, fetchNews]);
+  useEffect(() => { fetchNews(activeCat); }, [activeCat, fetchNews, lang]);
   useEffect(() => {
     const i = setInterval(() => fetchNews(activeCat), 5 * 60 * 1000);
     return () => clearInterval(i);
@@ -221,7 +226,6 @@ export default function App() {
     return () => window.removeEventListener("gdnn_update", h);
   }, []);
 
-  // If reading an article
   if (selectedArticle) {
     return <ArticleReader article={selectedArticle} lang={lang} onBack={() => setSelectedArticle(null)} geminiKey={GEMINI_KEY} />;
   }
@@ -239,11 +243,25 @@ export default function App() {
           <span style={S.topDate}>
             {new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
           </span>
-          {/* Language Toggle */}
-          <button onClick={() => setLang(l => l === "hi" ? "en" : "hi")} style={S.langBtn}>
-            <Globe size={12} style={{ marginRight:"4px" }} />
-            {lang === "hi" ? "English" : "हिंदी"}
-          </button>
+          {/* Language Dropdown */}
+          <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+            <Globe size={12} color="#fff" />
+            <select 
+              value={lang} 
+              onChange={(e) => setLang(e.target.value)} 
+              style={{
+                background: "#CC0000", color: "#fff", border: "1px solid #ff4d4d",
+                padding: "2px 6px", borderRadius: "4px", fontSize: "11px",
+                fontWeight: "700", cursor: "pointer", outline: "none"
+              }}
+            >
+              {LANGUAGES.map(l => (
+                <option key={l.code} value={l.code} style={{ background: "#fff", color: "#000" }}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -265,7 +283,7 @@ export default function App() {
         {searchOpen && (
           <div style={S.searchWrap}>
             <input autoFocus style={S.searchInput}
-              placeholder={lang === "hi" ? "खबरें खोजें..." : "Search news..."}
+              placeholder="Search news..."
               value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
         )}
@@ -275,12 +293,12 @@ export default function App() {
             {CATEGORIES.map(cat => (
               <button key={cat.id} style={{ ...S.menuItem, ...(activeCat === cat.id ? S.menuActive : {}) }}
                 onClick={() => { setActiveCat(cat.id); setMenuOpen(false); }}>
-                {lang === "hi" ? cat.hi : cat.en}
+                {cat[lang] || cat.en}
               </button>
             ))}
             <div style={{ borderTop:"2px solid #eee", marginTop:"4px" }}>
-              <button style={S.menuItem} onClick={() => { window.location.href = "/admin"; }}>
-                🔐 {lang === "hi" ? "Admin Panel" : "Admin Panel"}
+              <button style={S.menuItem} onClick={() => { window.location.href = "?admin"; }}>
+                🔐 Admin Panel
               </button>
             </div>
           </nav>
@@ -293,7 +311,7 @@ export default function App() {
       {/* BREAKING TICKER */}
       {ticker.length > 0 && (
         <div style={S.ticker}>
-          <span style={S.tickerLabel}><Radio size={11} style={{ marginRight:"4px" }} />{lang === "hi" ? "ब्रेकिंग" : "LIVE"}</span>
+          <span style={S.tickerLabel}><Radio size={11} style={{ marginRight:"4px" }} />LIVE</span>
           <div style={S.tickerTrack}>
             <div style={S.tickerInner}>
               {ticker.concat(ticker).map((h,i) => (
@@ -310,7 +328,7 @@ export default function App() {
           {CATEGORIES.map(cat => (
             <button key={cat.id} style={{ ...S.catBtn, ...(activeCat === cat.id ? S.catActive : {}) }}
               onClick={() => setActiveCat(cat.id)}>
-              {lang === "hi" ? cat.hi : cat.en}
+              {cat[lang] || cat.en}
             </button>
           ))}
         </div>
@@ -323,7 +341,7 @@ export default function App() {
         {adminNews.length > 0 && (
           <section style={{ marginBottom:"16px" }}>
             <div style={S.secHead}>
-              <span style={S.secTitle}>📢 {lang === "hi" ? "विशेष खबर" : "Special Report"}</span>
+              <span style={S.secTitle}>📢 Special Report</span>
             </div>
             {adminNews.slice(0,2).map((n,i) => (
               <div key={i} onClick={() => setSelectedArticle({ headline: n.title, description: n.summary, thumbnail: n.image, pubDate: n.createdAt, link:"#", originalSource:"GD News Network" })}
@@ -333,7 +351,7 @@ export default function App() {
                   <span style={S.gdBadge}>GD NEWS NETWORK</span>
                   <h2 style={S.heroH}>{n.title}</h2>
                   <p style={{ fontSize:"13px", color:"#555", lineHeight:1.5, margin:"0 0 8px" }}>{n.summary}</p>
-                  <span style={S.readMore}>{lang === "hi" ? "पूरी खबर पढ़ें →" : "Read Full Story →"}</span>
+                  <span style={S.readMore}>Read Full Story →</span>
                 </div>
               </div>
             ))}
@@ -343,7 +361,7 @@ export default function App() {
         {loading && articles.length === 0 && (
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"60px 20px", gap:"12px" }}>
             <RefreshCw size={28} style={{ animation:"spin 1s linear infinite", color:"#CC0000" }} />
-            <p style={{ color:"#888", fontSize:"13px" }}>{lang === "hi" ? "खबरें लोड हो रही हैं..." : "Loading news..."}</p>
+            <p style={{ color:"#888", fontSize:"13px" }}>Loading news...</p>
           </div>
         )}
 
@@ -351,7 +369,7 @@ export default function App() {
           <div style={{ textAlign:"center", padding:"40px 20px" }}>
             <p style={{ color:"#CC0000", fontWeight:"700" }}>{error}</p>
             <button onClick={() => fetchNews(activeCat)} style={S.retryBtn}>
-              {lang === "hi" ? "पुनः प्रयास" : "Retry"}
+              Retry
             </button>
           </div>
         )}
@@ -366,7 +384,7 @@ export default function App() {
                   : <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#CC0000,#7a0000)" }} />}
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent 40%,rgba(0,0,0,0.5))" }} />
                 <span style={{ position:"absolute", top:"10px", left:"10px", background:"#CC0000", color:"#fff", fontSize:"10px", fontWeight:"800", padding:"3px 8px", borderRadius:"3px" }}>
-                  {lang === "hi" ? "ब्रेकिंग न्यूज" : "BREAKING NEWS"}
+                  BREAKING NEWS
                 </span>
               </div>
               <div style={{ padding:"14px" }}>
@@ -377,7 +395,7 @@ export default function App() {
                   <span style={{ fontSize:"11px", color:"#888", display:"flex", alignItems:"center", gap:"3px" }}>
                     <Clock size={11} />{timeAgo(filtered[0].pubDate, lang)}
                   </span>
-                  <span style={S.readMore}>{lang === "hi" ? "पूरी खबर →" : "Read More →"}</span>
+                  <span style={S.readMore}>Read More →</span>
                 </div>
               </div>
             </div>
@@ -396,11 +414,4 @@ export default function App() {
                       </div>}
                   <div style={{ padding:"8px" }}>
                     <span style={S.gdBadge}>GD NEWS NETWORK</span>
-                    <p style={{ fontSize:"12px", fontWeight:"700", lineHeight:1.3, color:"#111", margin:"3px 0 4px", display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
-                      {art.headline}
-                    </p>
-                    <span style={{ fontSize:"10px", color:"#888" }}>{timeAgo(art.pubDate, lang)}</span>
-                  </div>
-                </div>
-              ))}
-      </
+             
