@@ -418,3 +418,25 @@ const S = {
   tickerItem: { color: WHITE, fontSize: "12px", paddingRight: "16px", fontWeight: "500" },
   catNav: { background: WHITE, borderBottom: `1px solid ${BORDER}`, position: "sticky", top: "66px", zIndex: 20 },
   catScroll: { maxWidth: "760px",
+margin: "0 auto", display: "flex", overflowX: "auto", padding: "0 8px", gap: "2px", scrollbarWidth: "none" },
+  catBtn: { background: "none", border: "none", padding: "10px 12px", fontSize: "13px", fontWeight: "600", color: "#888", cursor: "pointer", whiteSpace: "nowrap", borderBottom: "2.5px solid transparent" },
+  catActive: { color: RED, borderBottom: `2.5px solid ${RED}` },
+  main: { maxWidth: "760px", margin: "0 auto", padding: "12px 12px 40px" },
+  secHead: { display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: `4px solid ${RED}`, paddingLeft: "8px", margin: "14px 0 10px" },
+  secTitle: { fontWeight: "800", fontSize: "14px", color: "#111" },
+  gdBadge: { fontSize: "9px", fontWeight: "800", color: RED, letterSpacing: "0.06em", display: "block", marginBottom: "3px" },
+  heroCard: { background: "#fff", border: "1px solid #eee", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" },
+  heroH: { fontSize: "18px", fontWeight: "800", lineHeight: 1.3, color: "#111", margin: "4px 0 8px" },
+  readMore: { fontSize: "12px", color: RED, fontWeight: "700" },
+  retryBtn: { background: RED, color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", fontSize: "13px", fontWeight: "700", cursor: "pointer", marginTop: "10px" },
+};
+
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700;800&display=swap');
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  * { box-sizing:border-box; }
+  body { margin:0; }
+  a { text-decoration:none; color:inherit; }
+  ::-webkit-scrollbar { display:none; }
+`;
