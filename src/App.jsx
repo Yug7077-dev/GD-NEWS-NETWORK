@@ -12,16 +12,16 @@ const LANGUAGES = [
 ];
 
 const CATEGORIES = [
-  { id: "home",          hi: "होम",           en: "Home",          mr: "मुख्यपृष्ठ",    bn: "होम",         query: "India breaking news today" },
-  { id: "local",         hi: "स्थानीय",       en: "Local",         mr: "स्थानिक",       bn: "स्थानीय",       query: "local India city news today" },
-  { id: "state",         hi: "राज्य",         en: "State",         mr: "राज्य",         bn: "राज्य",         query: "India state government news today" },
-  { id: "national",      hi: "राष्ट्रीय",     en: "National",      mr: "राष्ट्रीय",     bn: "জাতীয়",        query: "India national news today" },
-  { id: "international", hi: "अंतर्राष्ट्रीय", en: "World",        mr: "आंतरराष्ट्रीय",  bn: "আন্তর্জাতিক", query: "world international news today" },
-  { id: "sports",        hi: "खेल",           en: "Sports",        mr: "क्रीडा",        bn: "খেলাধুলা",      query: "India cricket sports news today" },
-  { id: "entertainment", hi: "मनोरंजन",       en: "Entertainment", mr: "मनोरंजन",      bn: "বিনোদন",       query: "India bollywood entertainment news" },
-  { id: "business",      hi: "व्यापार",       en: "Business",      mr: "व्यापार",       bn: "ব্যবসা",        query: "India business economy stock news" },
-  { id: "politics",      hi: "राजनीति",       en: "Politics",      mr: "राजकारण",      bn: "রাজনীতি",       query: "India politics BJP Congress news" },
-  { id: "crime",         hi: "क्राइम",         en: "Crime",         mr: "गुन्हेगारी",     bn: "অপরাধ",        query: "India crime police news today" },
+  { id: "home",          hi: "होम",           en: "Home",          query: "India breaking news today" },
+  { id: "local",         hi: "स्थानीय",       en: "Local",         query: "local India city news today" },
+  { id: "state",         hi: "राज्य",         en: "State",         query: "India state government news today" },
+  { id: "national",      hi: "राष्ट्रीय",     en: "National",      query: "India national news today" },
+  { id: "international", hi: "अंतर्राष्ट्रीय", en: "World",        query: "world international news today" },
+  { id: "sports",        hi: "खेल",           en: "Sports",        query: "India cricket sports news today" },
+  { id: "entertainment", hi: "मनोरंजन",       en: "Entertainment", query: "India bollywood entertainment news" },
+  { id: "business",      hi: "व्यापार",       en: "Business",      query: "India business economy stock news" },
+  { id: "politics",      hi: "राजनीति",       en: "Politics",      query: "India politics BJP Congress news" },
+  { id: "crime",         hi: "क्राइम",         en: "Crime",         query: "India crime police news today" },
 ];
 
 const RSS_API = "https://api.rss2json.com/v1/api.json?rss_url=";
@@ -42,48 +42,14 @@ function timeAgo(dateStr, lang) {
   return lang === "hi" ? `${Math.floor(h/24)} दिन पहले` : `${Math.floor(h/24)}d ago`;
 }
 
-function AdBanner({ size = "leaderboard" }) {
-  const h = size === "leaderboard" ? "80px" : size === "rectangle" ? "220px" : "90px";
-  return (
-    <div style={{ width:"100%", height:h, background:"linear-gradient(135deg,#f8f9fa,#e9ecef)", border:"2px dashed #ced4da", borderRadius:"4px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", margin:"10px 0", color:"#999" }}>
-      <span style={{ fontSize:"9px", letterSpacing:"0.08em" }}>ADVERTISEMENT</span>
-    </div>
-  );
-}
-
-function ArticleReader({ article, lang, onBack, geminiKey }) {
-  const [fullContent, setFullContent] = useState("");
-  const [loading, setLoading] = useState(false);
-  
-  useEffect(() => {
-    if (!geminiKey) { setFullContent(article.description); return; }
-    setLoading(true);
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: `Write a detailed article in ${lang}: ${article.headline}` }] }] })
-    })
-    .then(res => res.json())
-    .then(data => setFullContent(data.candidates?.[0]?.content?.parts?.[0]?.text || article.description))
-    .finally(() => setLoading(false));
-  }, [article, lang, geminiKey]);
-
-  return (
-    <div style={{ background:"#fff", minHeight:"100vh", padding:"20px" }}>
-      <button onClick={onBack}><ChevronLeft /> Back</button>
-      <h1>{article.headline}</h1>
-      {loading ? <p>Generating...</p> : <p>{fullContent}</p>}
-    </div>
-  );
-}
-
 export default function App() {
   const [lang, setLang] = useState("hi");
   const [activeCat, setActiveCat] = useState("home");
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [adminNews] = useState(() => { try { return JSON.parse(localStorage.getItem("gdnn_news") || "[]"); } catch { return []; } });
 
   const fetchNews = useCallback(async (catId) => {
@@ -92,46 +58,62 @@ export default function App() {
     try {
       const res = await fetch(RSS_API + encodeURIComponent(buildFeed(cat.query, lang)));
       const data = await res.json();
-      setArticles(data.items.map((item, i) => ({ id: i, headline: item.title, thumbnail: item.thumbnail, pubDate: item.pubDate, link: item.link, description: item.description })));
+      setArticles(data.items.map((item, i) => ({ 
+        id: i, 
+        headline: item.title, 
+        thumbnail: item.thumbnail, 
+        pubDate: item.pubDate, 
+        link: item.link, 
+        description: item.description?.replace(/<[^>]+>/g, "").slice(0, 150) 
+      })));
     } catch { console.error("Err"); } finally { setLoading(false); }
   }, [lang]);
 
   useEffect(() => { fetchNews(activeCat); }, [activeCat, fetchNews]);
 
-  if (selectedArticle) return <ArticleReader article={selectedArticle} lang={lang} onBack={() => setSelectedArticle(null)} geminiKey={GEMINI_KEY} />;
-
   return (
-    <div style={{ fontFamily:"sans-serif" }}>
-      <header style={{ display:"flex", justifyContent:"space-between", padding:"15px", background:"#CC0000", color:"#fff" }}>
-        <Menu onClick={() => setMenuOpen(!menuOpen)} />
-        <img src={`data:image/png;base64,${LOGO_BASE64}`} style={{ height:"30px" }} />
-        <RefreshCw onClick={() => fetchNews(activeCat)} />
+    <div style={{ fontFamily: "'Noto Sans', sans-serif", background: "#fff", minHeight: "100vh" }}>
+      {/* Header */}
+      <header style={{ background: "#CC0000", padding: "12px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 }}>
+        <Menu size={24} color="#fff" onClick={() => setMenuOpen(!menuOpen)} />
+        <img src={`data:image/png;base64,${LOGO_BASE64}`} style={{ height: "30px" }} />
+        <div style={{ display: "flex", gap: "15px" }}>
+            <Search size={22} color="#fff" onClick={() => setSearchOpen(!searchOpen)} />
+            <RefreshCw size={22} color="#fff" onClick={() => fetchNews(activeCat)} />
+        </div>
       </header>
-      
+
+      {/* Language Toggle */}
+      <div style={{ padding: "10px", background: "#f8f8f8" }}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ width: "100%", padding: "8px" }}>
+          {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
+      </div>
+
+      {/* Menu */}
       {menuOpen && (
-        <nav style={{ padding:"10px" }}>
-          {CATEGORIES.map(c => <button key={c.id} onClick={() => { setActiveCat(c.id); setMenuOpen(false); }}>{c[lang]}</button>)}
-          <button onClick={() => window.location.href="?admin"}>Admin</button>
+        <nav style={{ background: "#fff", padding: "15px", borderBottom: "1px solid #ddd" }}>
+          {CATEGORIES.map(c => <button key={c.id} style={{ display: "block", padding: "10px" }} onClick={() => { setActiveCat(c.id); setMenuOpen(false); }}>{c[lang]}</button>)}
+          <button style={{ color: "red", fontWeight: "bold" }} onClick={() => window.location.href="?admin"}>Admin Panel</button>
         </nav>
       )}
 
-      <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ width:"100%" }}>
-        {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-      </select>
-
-      <main style={{ padding:"15px" }}>
-        {loading ? <p>Loading...</p> : articles.map(a => (
-          <div key={a.id} onClick={() => setSelectedArticle(a)} style={{ marginBottom:"20px" }}>
-            <h3>{a.headline}</h3>
-            {a.thumbnail && <img src={a.thumbnail} style={{ width:"100%" }} />}
+      {/* Articles */}
+      <main style={{ padding: "15px" }}>
+        {loading ? <p>Loading news...</p> : articles.map(a => (
+          <div key={a.id} style={{ marginBottom: "25px", borderBottom: "1px solid #eee", paddingBottom: "15px" }}>
+            <h2 style={{ fontSize: "18px", lineHeight: "1.4" }}>{a.headline}</h2>
+            {a.thumbnail && <img src={a.thumbnail} style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }} />}
+            <p style={{ fontSize: "14px", color: "#555", marginTop: "10px" }}>{a.description}...</p>
           </div>
         ))}
       </main>
-      
-      <footer style={{ background:"#1a1a1a", color:"#fff", padding:"20px", textAlign:"center" }}>
+
+      {/* Footer */}
+      <footer style={{ background: "#1a1a1a", color: "#fff", padding: "20px", textAlign: "center" }}>
         <p>© 2026 GD News Network</p>
       </footer>
     </div>
   );
-   }
-   
+    }
+    
