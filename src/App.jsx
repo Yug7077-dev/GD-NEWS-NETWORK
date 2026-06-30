@@ -105,7 +105,7 @@ function Reader({ art, lang, onBack }) {
         {loading ? (
           <div style={{ textAlign: "center", padding: "50px 0" }}>
             <RefreshCw size={28} style={{ animation: "spin 1s linear infinite", color: RED }} />
-            <p style={{ color: "#888", fontSize: "14px", marginTop: "12px" }}>{GK ? (lang === "hi" ? "🤖 AI पूरी खबर लिख रहा है..." : "🤖 AI writing full article...") : (lang === "hi" ? "खबर लोड हो रही है..." : "Loading article...")}</p>
+            <p style={{ color: "#888", fontSize: "14px", marginTop: "12px" }}>{GK ? (lang === "hi" ? "🤖 AI पूरी खबर लिख रहा है..." : "🤖 AI writing full article...") : (lang === "hi" ? "खबर导 रही है..." : "Loading article...")}</p>
           </div>
         ) : (
           <div style={{ fontSize: "16px", lineHeight: 1.85, color: "#222" }}>
@@ -239,4 +239,5 @@ export default function App() {
           </div>
           <Ad h="80px" />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+        " }}>
  
