@@ -1,14 +1,779 @@
 <!DOCTYPE html>
-<html lang="en-IN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <meta name="description" content="GD News Network - Latest India news, breaking headlines, business, technology, sports and entertainment updates." />
-    <meta name="theme-color" content="#121214" />
-    <title>GD News Network</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="description" content="GD News Network - India ki taaza khabrein, har pal updated"/>
+<title>GD News Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans','Noto Sans Devanagari',sans-serif;background:#fff;color:#111;-webkit-tap-highlight-color:transparent}
+a{text-decoration:none;color:inherit}
+::-webkit-scrollbar{display:none}
+.hide-scroll{-ms-overflow-style:none;scrollbar-width:none}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Layout */
+#app{min-height:100vh;background:#fff}
+.max-w{max-width:780px;margin:0 auto}
+
+/* Top bar */
+.topbar{background:#1a1a1a;padding:5px 14px;display:flex;justify-content:space-between;align-items:center}
+.topbar-date{font-size:10px;color:#aaa}
+.lang-btn{display:flex;align-items:center;gap:4px;background:#CC0000;color:#fff;border:none;padding:4px 11px;border-radius:12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+
+/* Header */
+.header{background:#fff;border-bottom:3px solid #CC0000;position:sticky;top:0;z-index:40;box-shadow:0 2px 10px rgba(0,0,0,.09)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:8px 12px}
+.logo-wrap{flex:1;display:flex;justify-content:center}
+.logo-svg{height:46px;width:auto}
+.icon-btn{background:none;border:none;cursor:pointer;padding:7px;color:#111;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.icon-btn:active{background:#f0f0f0}
+.search-bar{padding:8px 12px;background:#f5f5f5;border-top:1px solid #eee;animation:fadeIn .15s ease}
+.search-input{width:100%;padding:9px 16px;border:1px solid #ddd;border-radius:20px;font-size:14px;outline:none;font-family:inherit}
+
+/* Mobile menu */
+.menu-drawer{background:#fff;border-top:1px solid #eee;max-height:72vh;overflow-y:auto;animation:fadeIn .15s ease}
+.menu-item{display:block;width:100%;text-align:left;padding:13px 16px;background:none;border:none;border-bottom:1px solid #f5f5f5;font-size:14px;cursor:pointer;color:#333;font-family:inherit;transition:background .1s}
+.menu-item:active{background:#f9f0f0}
+.menu-item.active{color:#CC0000;font-weight:800;background:#fff5f5}
+.menu-divider{height:2px;background:#eee;margin:4px 0}
+
+/* Ad */
+.ad{width:100%;background:#f8f8f8;border:2px dashed #ddd;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#ccc;margin:10px 0}
+.ad span:first-child{font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.ad span:last-child{font-size:11px;font-weight:600;margin-top:2px}
+
+/* Ticker */
+.ticker{display:flex;align-items:center;background:#CC0000;overflow:hidden;height:33px}
+.ticker-label{display:flex;align-items:center;gap:4px;background:#1a1a1a;color:#E8B84B;font-size:11px;font-weight:800;padding:0 13px;height:100%;flex-shrink:0;white-space:nowrap;letter-spacing:.04em}
+.ticker-track{overflow:hidden;flex:1;height:100%;display:flex;align-items:center}
+.ticker-inner{display:flex;white-space:nowrap;animation:ticker 45s linear infinite}
+.ticker-item{color:#fff;font-size:12px;padding-right:16px;font-weight:500}
+.ticker-dot{color:#E8B84B;margin:0 14px;font-size:8px}
+
+/* Category nav */
+.cat-nav{background:#fff;border-bottom:1px solid #eee;position:sticky;top:67px;z-index:30}
+.cat-scroll{display:flex;overflow-x:auto;padding:0 8px;gap:2px}
+.cat-btn{background:none;border:none;padding:10px 13px;font-size:13px;font-weight:600;color:#888;cursor:pointer;white-space:nowrap;border-bottom:2.5px solid transparent;font-family:inherit;transition:color .15s}
+.cat-btn.active{color:#CC0000;border-bottom:2.5px solid #CC0000}
+
+/* Main */
+main{padding:12px 12px 60px}
+
+/* Section head */
+.sec-head{display:flex;justify-content:space-between;align-items:center;border-left:4px solid #CC0000;padding-left:8px;margin:16px 0 10px}
+.sec-title{font-weight:800;font-size:14px}
+.sec-more{font-size:12px;color:#CC0000;cursor:pointer}
+
+/* Badge */
+.gd-badge{font-size:9px;font-weight:800;color:#CC0000;letter-spacing:.06em;display:block;margin-bottom:3px;text-transform:uppercase}
+
+/* Hero card */
+.hero-card{background:#fff;border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);animation:fadeIn .3s ease}
+.hero-img-wrap{position:relative;width:100%;height:220px;overflow:hidden;background:#f0f0f0}
+.hero-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.45))}
+.breaking-tag{position:absolute;top:10px;left:10px;background:#CC0000;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:3px;letter-spacing:.03em}
+.cat-tag{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:3px 8px;border-radius:3px}
+.hero-body{padding:14px}
+.hero-h{font-size:19px;font-weight:800;line-height:1.32;color:#111;margin:4px 0 8px}
+.hero-desc{font-size:13px;color:#555;line-height:1.55;margin:0 0 10px}
+.hero-meta{display:flex;justify-content:space-between;align-items:center}
+.time-tag{font-size:11px;color:#aaa;display:flex;align-items:center;gap:3px}
+.read-more{font-size:12px;color:#CC0000;font-weight:700}
+
+/* 2-grid */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.grid-card{background:#fff;border:1px solid #eee;border-radius:8px;overflow:hidden;cursor:pointer;transition:transform .1s}
+.grid-card:active{transform:scale(.98)}
+.grid-img{width:100%;height:96px;object-fit:cover;display:block;background:#f0f0f0}
+.grid-img-fb{width:100%;height:96px;background:linear-gradient(135deg,#CC0000,#7a0000);display:flex;align-items:center;justify-content:center}
+.grid-body{padding:8px}
+.grid-h{font-size:12px;font-weight:700;line-height:1.3;color:#111;margin:3px 0 4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* List */
+.list-card{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.list-card:active .list-img{opacity:.85}
+.list-img{width:90px;height:70px;border-radius:7px;overflow:hidden;flex-shrink:0;background:#f0f0f0}
+.list-img img{width:100%;height:100%;object-fit:cover;display:block}
+.list-img-fb{width:100%;height:100%;background:linear-gradient(135deg,#CC0000,#7a0000);display:flex;align-items:center;justify-content:center}
+.list-body{flex:1;min-width:0}
+.list-h{font-size:14px;font-weight:700;line-height:1.3;color:#111;margin:3px 0 6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.list-foot{display:flex;justify-content:space-between;align-items:center}
+
+/* Admin card */
+.admin-card{background:#fff;border:2px solid #CC0000;border-radius:9px;overflow:hidden;margin-bottom:11px;cursor:pointer;animation:fadeIn .3s ease}
+.admin-img{width:100%;height:180px;object-fit:cover;display:block;background:#f0f0f0}
+
+/* State box */
+.state-box{display:flex;flex-direction:column;align-items:center;gap:12px;padding:60px 20px;text-align:center}
+.state-text{color:#888;font-size:14px}
+.retry-btn{background:#CC0000;color:#fff;border:none;padding:9px 22px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+
+/* Article reader */
+#reader{position:fixed;inset:0;z-index:100;background:#fff;overflow-y:auto;display:none;animation:fadeIn .2s ease}
+#reader.open{display:block}
+.reader-header{background:#CC0000;padding:10px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.reader-actions{margin-left:auto;display:flex;gap:12px}
+.reader-btn{background:none;border:none;color:#fff;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center}
+.reader-content{max-width:780px;margin:0 auto;padding:16px 14px 60px}
+.reader-meta{display:flex;gap:8px;align-items:center;margin-bottom:13px;flex-wrap:wrap}
+.reader-source{background:#CC0000;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:3px;letter-spacing:.03em}
+.reader-h{font-size:22px;font-weight:800;line-height:1.32;color:#111;margin:0 0 16px}
+.reader-img{width:100%;border-radius:9px;overflow:hidden;margin-bottom:16px}
+.reader-img img{width:100%;max-height:240px;object-fit:cover;display:block}
+.reader-img-cap{background:#f5f5f5;padding:5px 10px;font-size:10px;color:#999}
+.reader-body{font-size:16px;line-height:1.88;color:#222}
+.reader-body p{margin:0 0 16px}
+.reader-body p:last-child{margin-bottom:0}
+.reader-orig{border-top:1px solid #eee;padding-top:14px;margin-top:10px}
+.reader-orig p{font-size:11px;color:#bbb;margin-bottom:8px}
+.reader-orig a{font-size:13px;color:#CC0000;font-weight:700}
+.ai-loading{text-align:center;padding:50px 0}
+.ai-loading .spinner{width:28px;height:28px;border:3px solid #f0f0f0;border-top:3px solid #CC0000;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+.ai-loading p{color:#888;font-size:14px}
+
+/* Admin panel */
+#admin-panel{position:fixed;inset:0;z-index:100;background:#f5f5f5;overflow-y:auto;display:none}
+#admin-panel.open{display:block}
+.admin-header{background:#CC0000;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.admin-header h1{color:#fff;font-weight:800;font-size:16px;flex:1}
+.admin-back{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 13px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
+.saved-badge{background:#4caf50;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;display:none}
+.admin-box{background:#fff;border-radius:10px;padding:16px;margin-bottom:14px;border:1px solid #e0e0e0}
+.admin-box h3{color:#CC0000;margin:0 0 12px;font-size:15px}
+.ai-writer-row{display:flex;gap:8px}
+.ai-writer-input{flex:1;padding:9px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;outline:none;font-family:inherit}
+.ai-write-btn{padding:9px 16px;background:#CC0000;color:#fff;border:none;border-radius:7px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+.ai-write-btn:disabled{background:#aaa}
+.warn-text{color:#e65100;font-size:12px;margin-top:8px}
+.form-select,.form-input,.form-textarea{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:7px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit;box-sizing:border-box}
+.form-textarea{resize:vertical}
+.publish-btn{width:100%;padding:13px;background:#CC0000;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit}
+.published-item{background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.published-item-body{flex:1;min-width:0}
+.published-cat{font-size:10px;color:#CC0000;font-weight:800;letter-spacing:.05em}
+.published-title{margin:4px 0 0;font-size:13px;font-weight:700;color:#333}
+.delete-btn{background:#ff5252;color:#fff;border:none;border-radius:5px;padding:4px 11px;font-size:12px;cursor:pointer;flex-shrink:0;font-family:inherit}
+
+/* Img fallback text */
+.fb-text{color:rgba(255,255,255,.25);font-size:22px;font-weight:800}
+
+/* Footer */
+footer{background:#1a1a1a;padding:22px 16px;text-align:center}
+footer img{height:38px;object-fit:contain;margin:0 0 8px}
+footer p{font-size:12px;color:#aaa;margin:4px 0}
+footer p.small{font-size:11px;color:#555}
+
+/* Live dot */
+.live-dot{width:7px;height:7px;border-radius:50%;background:#4ADE80;animation:pulse 2s ease-in-out infinite;display:inline-block;margin-left:6px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ARTICLE READER -->
+  <div id="reader">
+    <div class="reader-header">
+      <button class="reader-btn" onclick="closeReader()" title="Back">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div style="flex:1;display:flex;justify-content:center">
+        <div id="reader-logo"></div>
+      </div>
+      <div class="reader-actions">
+        <button class="reader-btn" id="bm-btn" onclick="toggleBookmark()" title="Bookmark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </button>
+        <button class="reader-btn" onclick="shareArticle()" title="Share">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="reader-content" id="reader-content"></div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="admin-panel">
+    <div class="admin-header">
+      <div id="admin-logo"></div>
+      <h1>Admin Panel</h1>
+      <button class="admin-back" onclick="closeAdmin()">← Website</button>
+      <span class="saved-badge" id="saved-badge">✅ Saved!</span>
+    </div>
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      <div class="admin-box">
+        <h3>🤖 AI News Writer</h3>
+        <div class="ai-writer-row">
+          <input class="ai-writer-input" id="ai-topic" placeholder="Topic daalo (e.g. UP mein barish, Delhi politics…)"/>
+          <button class="ai-write-btn" id="ai-write-btn" onclick="aiWrite()">AI se Likhao</button>
+        </div>
+        <p class="warn-text" id="ai-warn" style="display:none">⚠️ GEMINI_KEY set nahi hai Vercel mein!</p>
+      </div>
+      <div class="admin-box">
+        <h3>📝 Khaber Publish Karo</h3>
+        <select class="form-select" id="f-cat">
+          <option>स्थानीय</option><option>राज्य</option><option selected>राष्ट्रीय</option>
+          <option>अंतर्राष्ट्रीय</option><option>खेल</option><option>मनोरंजन</option>
+          <option>व्यापार</option><option>राजनीति</option><option>अपराध</option>
+        </select>
+        <input class="form-input" id="f-title" placeholder="Headline / शीर्षक *"/>
+        <textarea class="form-textarea" id="f-summary" rows="4" placeholder="Khaber ka summary / विवरण *"></textarea>
+        <input class="form-input" id="f-image" placeholder="Image URL (optional)"/>
+        <button class="publish-btn" onclick="publishNews()">🚀 Publish Karo — GD News Network</button>
+      </div>
+      <div id="published-list"></div>
+    </div>
+  </div>
+
+  <!-- MAIN SITE -->
+  <div id="main-site">
+    <!-- Top bar -->
+    <div class="topbar">
+      <span class="topbar-date" id="top-date"></span>
+      <button class="lang-btn" onclick="toggleLang()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        <span id="lang-label">English</span>
+      </button>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="max-w header-inner">
+        <button class="icon-btn" onclick="toggleMenu()">
+          <span id="menu-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </span>
+        </button>
+        <div class="logo-wrap">
+          <div id="header-logo"></div>
+        </div>
+        <div style="display:flex;gap:2px">
+          <button class="icon-btn" onclick="toggleSearch()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+          <button class="icon-btn" id="refresh-btn" onclick="loadNews(currentCat)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" id="refresh-icon"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="search-bar" style="display:none" class="search-bar">
+        <input class="search-input" id="search-input" placeholder="" oninput="filterNews(this.value)"/>
+      </div>
+      <nav id="menu-drawer" class="menu-drawer" style="display:none"></nav>
+    </header>
+
+    <!-- Ad -->
+    <div class="max-w" style="padding:0 12px">
+      <div class="ad" style="height:78px"><span>Advertisement</span><span>728×90 Google AdSense</span></div>
+    </div>
+
+    <!-- Ticker -->
+    <div class="ticker">
+      <div class="ticker-label">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+        <span id="ticker-lbl">ब्रेकिंग</span>
+      </div>
+      <div class="ticker-track">
+        <div class="ticker-inner" id="ticker-inner"></div>
+      </div>
+    </div>
+
+    <!-- Category nav -->
+    <nav class="cat-nav">
+      <div class="max-w cat-scroll hide-scroll" id="cat-nav"></div>
+    </nav>
+
+    <!-- Content -->
+    <main class="max-w" id="main-content">
+      <div class="state-box">
+        <div style="width:28px;height:28px;border:3px solid #f0f0f0;border-top:3px solid #CC0000;border-radius:50%;animation:spin 1s linear infinite"></div>
+        <p class="state-text">खबरें लोड हो रही हैं...</p>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div style="width:80px;height:2px;background:#CC0000;margin:0 auto 14px"></div>
+      <div id="footer-logo"></div>
+      <p id="footer-tagline">GD News Network — आपकी अपनी खबर</p>
+      <p class="small">© 2026 GD News Network. All Rights Reserved.</p>
+      <p class="small" style="margin-top:4px;color:#444">Headlines sourced via Google News</p>
+    </footer>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────
+const GK = ''; // Gemini key — entered at runtime via admin or set here
+const RSS = 'https://api.rss2json.com/v1/api.json?rss_url=';
+const LOGO_SVG = `<svg viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg" style="height:44px;width:auto">
+  <rect width="220" height="70" rx="8" fill="#1a1a1a"/>
+  <rect x="4" y="4" width="212" height="62" rx="6" fill="none" stroke="#E8B84B" stroke-width="2"/>
+  <circle cx="35" cy="35" r="20" fill="none" stroke="#CC0000" stroke-width="2"/>
+  <ellipse cx="35" cy="35" rx="9" ry="20" fill="none" stroke="#CC0000" stroke-width="1.5"/>
+  <line x1="15" y1="35" x2="55" y2="35" stroke="#CC0000" stroke-width="1.5"/>
+  <circle cx="35" cy="35" r="20" fill="none" stroke="#E8B84B" stroke-width=".5" opacity=".4"/>
+  <text x="65" y="28" font-family="Arial Black,sans-serif" font-weight="900" font-size="18" fill="#CC0000" letter-spacing="1">GD</text>
+  <text x="65" y="46" font-family="Arial Black,sans-serif" font-weight="900" font-size="13" fill="#E8B84B" letter-spacing="2">NEWS</text>
+  <text x="65" y="62" font-family="Arial,sans-serif" font-weight="700" font-size="9" fill="#aaa" letter-spacing="3">NETWORK</text>
+</svg>`;
+const LOGO_SMALL = `<svg viewBox="0 0 160 50" xmlns="http://www.w3.org/2000/svg" style="height:30px;width:auto">
+  <rect width="160" height="50" rx="6" fill="#1a1a1a"/>
+  <rect x="3" y="3" width="154" height="44" rx="4" fill="none" stroke="#E8B84B" stroke-width="1.5"/>
+  <circle cx="26" cy="25" r="14" fill="none" stroke="#CC0000" stroke-width="1.5"/>
+  <ellipse cx="26" cy="25" rx="6" ry="14" fill="none" stroke="#CC0000" stroke-width="1"/>
+  <line x1="12" y1="25" x2="40" y2="25" stroke="#CC0000" stroke-width="1"/>
+  <text x="46" y="20" font-family="Arial Black,sans-serif" font-weight="900" font-size="13" fill="#CC0000">GD</text>
+  <text x="46" y="33" font-family="Arial Black,sans-serif" font-weight="900" font-size="10" fill="#E8B84B" letter-spacing="1">NEWS</text>
+  <text x="46" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="6" fill="#aaa" letter-spacing="2">NETWORK</text>
+</svg>`;
+
+document.querySelectorAll('#header-logo,#reader-logo,#admin-logo').forEach(el => {
+  if(el.id==='header-logo') el.innerHTML = LOGO_SVG;
+  else el.innerHTML = LOGO_SMALL;
+});
+
+const CATS = [
+  {id:'home',hi:'होम',en:'Home',q:'India breaking news today'},
+  {id:'local',hi:'स्थानीय',en:'Local',q:'local India state news today'},
+  {id:'state',hi:'राज्य',en:'State',q:'India state government news today'},
+  {id:'national',hi:'राष्ट्रीय',en:'National',q:'India national news today'},
+  {id:'international',hi:'अंतर्राष्ट्रीय',en:'World',q:'world international news today'},
+  {id:'sports',hi:'खेल',en:'Sports',q:'India cricket sports news today'},
+  {id:'entertainment',hi:'मनोरंजन',en:'Entertainment',q:'India bollywood entertainment news'},
+  {id:'business',hi:'व्यापार',en:'Business',q:'India business economy news'},
+  {id:'politics',hi:'राजनीति',en:'Politics',q:'India politics BJP Congress news'},
+  {id:'crime',hi:'अपराध',en:'Crime',q:'India crime police news today'},
+];
+
+// ── STATE ─────────────────────────────────────────────────────
+let lang = 'hi', currentCat = 'home', articles = [], menuOpen = false, searchOpen = false, bookmarked = false, currentArticle = null;
+let adminNews = (() => { try { return JSON.parse(localStorage.getItem('gdnn_news')||'[]'); } catch { return []; } })();
+let geminiKey = 'server'; // key ab server (/api/gemini) pe hai
+
+// ── HELPERS ───────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const RED = '#CC0000';
+
+function tAgo(d) {
+  const m = Math.floor((Date.now() - new Date(d)) / 60000);
+  if (m < 1) return lang==='hi' ? 'अभी' : 'Just now';
+  if (m < 60) return lang==='hi' ? `${m} मिनट पहले` : `${m}m ago`;
+  const h = Math.floor(m/60);
+  if (h < 24) return lang==='hi' ? `${h} घंटे पहले` : `${h}h ago`;
+  return lang==='hi' ? `${Math.floor(h/24)} दिन पहले` : `${Math.floor(h/24)}d ago`;
+}
+
+function cleanTitle(t) {
+  const i = t.lastIndexOf(' - ');
+  return i > 10 && i > t.length - 45 ? { h: t.slice(0,i), s: t.slice(i+3) } : { h: t, s: 'GD News Network' };
+}
+
+function imgOrFb(src, h='100%') {
+  const proxy = src ? `https://images.weserv.nl/?url=${encodeURIComponent(src)}&w=500&h=300&fit=cover&output=jpg` : '';
+  if (!proxy) return `<div class="list-img-fb"><span class="fb-text">GD</span></div>`;
+  return `<img src="${proxy}" style="width:100%;height:${h};object-fit:cover;display:block" onerror="this.outerHTML='<div class=\\'list-img-fb\\'><span class=\\'fb-text\\'>GD</span></div>'" loading="lazy"/>`;
+}
+
+async function callGemini(prompt) {
+  // Cache: same article dubara khole to API call nahi (free limit bachti hai)
+  let h = 0; for (let i = 0; i < prompt.length; i++) h = (h * 31 + prompt.charCodeAt(i)) | 0;
+  const ck = 'gdnn_ai_' + h;
+  try { const c = localStorage.getItem(ck); if (c) return c; } catch {}
+  try {
+    const r = await fetch('/api/gemini', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.text) return null;
+    try { localStorage.setItem(ck, d.text); } catch {}
+    return d.text;
+  } catch { return null; }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+function init() {
+  setTopDate();
+  buildCatNav();
+  buildMenu();
+  loadNews('home');
+  setInterval(() => loadNews(currentCat), 5 * 60 * 1000);
+  if (!geminiKey) $('ai-warn').style.display = 'block';
+}
+
+function setTopDate() {
+  const opts = { weekday:'short', day:'numeric', month:'long', year:'numeric' };
+  $('top-date').textContent = new Date().toLocaleDateString(lang==='hi' ? 'hi-IN' : 'en-IN', opts);
+}
+
+function buildCatNav() {
+  const nav = $('cat-nav');
+  nav.innerHTML = CATS.map(c =>
+    `<button class="cat-btn${c.id===currentCat?' active':''}" onclick="switchCat('${c.id}')">${lang==='hi'?c.hi:c.en}</button>`
+  ).join('');
+}
+
+function buildMenu() {
+  const d = $('menu-drawer');
+  d.innerHTML = CATS.map(c =>
+    `<button class="menu-item${c.id===currentCat?' active':''}" onclick="switchCat('${c.id}');toggleMenu()">${lang==='hi'?c.hi:c.en}</button>`
+  ).join('') +
+  `<div class="menu-divider"></div>
+  <button class="menu-item" onclick="openAdmin()">🔐 Admin Panel</button>`;
+}
+
+// ── LANGUAGE ──────────────────────────────────────────────────
+function toggleLang() {
+  lang = lang === 'hi' ? 'en' : 'hi';
+  $('lang-label').textContent = lang === 'hi' ? 'English' : 'हिंदी';
+  $('ticker-lbl').textContent = lang === 'hi' ? 'ब्रेकिंग' : 'LIVE';
+  $('search-input').placeholder = lang === 'hi' ? 'खबरें खोजें...' : 'Search news...';
+  $('footer-tagline').textContent = lang === 'hi' ? 'GD News Network — आपकी अपनी खबर' : 'GD News Network — Your Trusted News Source';
+  setTopDate();
+  buildCatNav();
+  buildMenu();
+  renderArticles();
+}
+
+// ── MENU & SEARCH ─────────────────────────────────────────────
+function toggleMenu() {
+  menuOpen = !menuOpen;
+  $('menu-drawer').style.display = menuOpen ? 'block' : 'none';
+  $('menu-icon').innerHTML = menuOpen
+    ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
+    : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`;
+}
+
+function toggleSearch() {
+  searchOpen = !searchOpen;
+  $('search-bar').style.display = searchOpen ? 'block' : 'none';
+  if (searchOpen) $('search-input').focus();
+  else { $('search-input').value=''; renderArticles(); }
+}
+
+function filterNews(q) {
+  const low = q.toLowerCase();
+  const filtered = q ? articles.filter(a => a.headline.toLowerCase().includes(low)) : articles;
+  renderArticles(filtered);
+}
+
+// ── CATEGORY ──────────────────────────────────────────────────
+function switchCat(id) {
+  currentCat = id;
+  buildCatNav();
+  buildMenu();
+  loadNews(id);
+  $('main-content').scrollIntoView({ behavior:'smooth' });
+}
+
+// ── LOAD NEWS ─────────────────────────────────────────────────
+async function loadNews(catId) {
+  const icon = $('refresh-icon');
+  icon.style.animation = 'spin 1s linear infinite';
+  const c = CATS.find(x => x.id === catId);
+  try {
+    const feed = `https://news.google.com/rss/search?q=${encodeURIComponent(c.q)}&hl=en-IN&gl=IN&ceid=IN:en`;
+    const r = await fetch(RSS + encodeURIComponent(feed));
+    const d = await r.json();
+    if (d.status !== 'ok') throw new Error();
+    articles = d.items.slice(0,25).map((it,i) => {
+      const { h, s } = cleanTitle(it.title||'');
+      return {
+        id: it.guid||i, headline:h, src:s, link:it.link,
+        pubDate:it.pubDate,
+        img: it.thumbnail || it.enclosure?.link || null,
+        desc: (it.description||'').replace(/<[^>]+>/g,'').slice(0,300),
+      };
+    });
+    renderArticles();
+    buildTicker();
+  } catch {
+    $('main-content').innerHTML = `<div class="state-box">
+      <p style="color:#CC0000;font-weight:700">${lang==='hi'?'खबरें लोड नहीं हो सकीं।':'Could not load news.'}</p>
+      <button class="retry-btn" onclick="loadNews('${catId}')">${lang==='hi'?'पुनः प्रयास':'Retry'}</button>
+    </div>`;
+  }
+  icon.style.animation = 'none';
+}
+
+// ── TICKER ────────────────────────────────────────────────────
+function buildTicker() {
+  const items = [...adminNews.slice(0,2), ...articles.slice(0,6)].map(a => a.headline||a.title).filter(Boolean);
+  if (!items.length) return;
+  const inner = $('ticker-inner');
+  const doubled = [...items, ...items];
+  inner.innerHTML = doubled.map(h => `<span class="ticker-item">${h}<span class="ticker-dot">●</span></span>`).join('');
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function renderArticles(list) {
+  list = list || articles;
+  const mc = $('main-content');
+  if (!list.length) {
+    mc.innerHTML = `<div class="state-box"><p class="state-text">${lang==='hi'?'कोई खबर नहीं मिली।':'No news found.'}</p></div>`;
+    return;
+  }
+  let html = '';
+
+  // Admin news
+  if (adminNews.length) {
+    html += `<div class="sec-head"><span class="sec-title">📢 ${lang==='hi'?'विशेष खबर':'Special Report'}</span></div>`;
+    adminNews.slice(0,2).forEach((n,i) => {
+      html += `<div class="admin-card" onclick="openAdminArticle(${i})">
+        ${n.image ? `<img class="admin-img" src="${n.image}" onerror="this.style.display='none'" loading="lazy"/>` : ''}
+        <div style="padding:12px 14px">
+          <span class="gd-badge">GD NEWS NETWORK</span>
+          <h2 style="font-size:17px;font-weight:800;line-height:1.3;color:#111;margin:0 0 6px">${n.title}</h2>
+          <p style="font-size:13px;color:#555;line-height:1.5;margin:0 0 8px">${n.summary}</p>
+          <span class="read-more">${lang==='hi'?'पूरी खबर →':'Full Story →'}</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Hero
+  const hero = list[0];
+  html += `<div class="hero-card" onclick="openArticle(0)">
+    <div class="hero-img-wrap">
+      ${imgOrFb(hero.img, '220px')}
+      <div class="hero-overlay"></div>
+      <span class="breaking-tag">${lang==='hi'?'ब्रेकिंग न्यूज':'BREAKING NEWS'}</span>
+    </div>
+    <div class="hero-body">
+      <span class="gd-badge">GD NEWS NETWORK</span>
+      <h1 class="hero-h">${hero.headline}</h1>
+      <p class="hero-desc">${hero.desc}</p>
+      <div class="hero-meta">
+        <span class="time-tag">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          ${tAgo(hero.pubDate)}
+        </span>
+        <span class="read-more">${lang==='hi'?'पूरी खबर पढ़ें →':'Read Full Story →'}</span>
+      </div>
+    </div>
+  </div>`;
+
+  // Ad
+  html += `<div class="ad" style="height:80px"><span>Advertisement</span><span>Inline Google AdSense</span></div>`;
+
+  // Grid 2
+  html += `<div class="grid-2">`;
+  list.slice(1,3).forEach((art,i) => {
+    html += `<div class="grid-card" onclick="openArticle(${i+1})">
+      <div style="height:96px;overflow:hidden;background:#f0f0f0">${imgOrFb(art.img,'96px')}</div>
+      <div class="grid-body">
+        <span class="gd-badge" style="font-size:8px">GD NEWS NETWORK</span>
+        <p class="grid-h">${art.headline}</p>
+        <span class="time-tag" style="font-size:10px">${tAgo(art.pubDate)}</span>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Ad rectangle
+  html += `<div class="ad" style="height:220px"><span>Advertisement</span><span>300×250 Google AdSense</span></div>`;
+
+  // Section head
+  html += `<div class="sec-head"><span class="sec-title">${lang==='hi'?'सभी खबरें':'All News'}<span class="live-dot"></span></span>
+    <span class="sec-more">${lang==='hi'?'और देखें →':'More →'}</span></div>`;
+
+  // List
+  list.slice(3).forEach((art,idx) => {
+    html += `<div class="list-card" onclick="openArticle(${idx+3})">
+      <div class="list-img">${imgOrFb(art.img,'70px')}</div>
+      <div class="list-body">
+        <span class="gd-badge" style="font-size:8.5px">GD NEWS NETWORK</span>
+        <p class="list-h">${art.headline}</p>
+        <div class="list-foot">
+          <span class="time-tag">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${tAgo(art.pubDate)}
+          </span>
+          <span class="read-more" style="font-size:11px">${lang==='hi'?'पढ़ें →':'Read →'}</span>
+        </div>
+      </div>
+    </div>`;
+    if ((idx+1) % 5 === 0) html += `<div class="ad" style="height:80px"><span>Advertisement</span><span>Inline Google AdSense</span></div>`;
+  });
+
+  mc.innerHTML = html;
+}
+
+// ── ARTICLE READER ────────────────────────────────────────────
+function openArticle(idx) {
+  currentArticle = articles[idx];
+  bookmarked = false;
+  updateBmIcon();
+  renderReader(currentArticle, false);
+}
+
+function openAdminArticle(idx) {
+  const n = adminNews[idx];
+  currentArticle = { headline:n.title, desc:n.summary, img:n.image, pubDate:n.createdAt, link:'#', src:'GD News Network', isAdmin:true };
+  renderReader(currentArticle, false);
+}
+
+async function renderReader(art, skipAI) {
+  const reader = $('reader');
+  const content = $('reader-content');
+  reader.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  const imgHtml = art.img
+    ? `<div class="reader-img"><img src="https://images.weserv.nl/?url=${encodeURIComponent(art.img)}&w=780&h=440&fit=cover&output=jpg" onerror="this.parentElement.style.display='none'" loading="lazy"/><div class="reader-img-cap">© GD News Network</div></div>`
+    : '';
+
+  content.innerHTML = `
+    <div class="reader-meta">
+      <span class="reader-source">GD NEWS NETWORK</span>
+      <span class="time-tag">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        ${tAgo(art.pubDate)}
+      </span>
+    </div>
+    <h1 class="reader-h">${art.headline}</h1>
+    ${imgHtml}
+    <div class="ad" style="height:78px"><span>Advertisement</span><span>728×90 Google AdSense</span></div>
+    <div id="article-body" class="ai-loading">
+      <div class="spinner"></div>
+      <p>${geminiKey ? (lang==='hi'?'🤖 AI पूरी खबर लिख रहा है...':'🤖 AI writing full article...') : (lang==='hi'?'खबर लोड हो रही है...':'Loading article...')}</p>
+    </div>
+    <div class="ad" style="height:220px;margin-top:20px"><span>Advertisement</span><span>300×250 Google AdSense</span></div>
+    <div class="reader-orig">
+      <p>${lang==='hi'?'मूल स्रोत:':'Source:'} ${art.src}</p>
+      ${art.link && art.link !== '#' ? `<a href="${art.link}" target="_blank" rel="noopener">${lang==='hi'?'मूल खबर पढ़ें →':'Read Original →'}</a>` : ''}
+    </div>`;
+
+  // Generate AI article
+  if (!skipAI) {
+    const prompt = lang === 'hi'
+      ? `तुम GD News Network के वरिष्ठ पत्रकार हो। नीचे दी गई खबर पर एक विस्तृत, रोचक 400 शब्द का Hindi news article लिखो। Article में पूरी खबर का विवरण, पृष्ठभूमि, प्रभाव और विशेषज्ञ राय शामिल करो। केवल article body लिखो, कोई heading नहीं।\n\nHeadline: ${art.headline}\nSummary: ${art.desc}`
+      : `You are a senior journalist at GD News Network. Write a detailed, engaging 400-word news article. Include full story, background, impact, and expert perspective. Only article body, no headings.\n\nHeadline: ${art.headline}\nSummary: ${art.desc}`;
+
+    const text = await callGemini(prompt);
+    const body = $('article-body');
+    if (body) {
+      if (text) {
+        body.className = 'reader-body';
+        body.innerHTML = text.split('\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('');
+      } else {
+        body.className = 'reader-body';
+        body.innerHTML = `<p>${art.desc}</p>` + (geminiKey ? `<p style="color:#aaa;font-size:13px;margin-top:16px">${lang==='hi'?'(AI article unavailable)':'(AI article unavailable)'}</p>` : `<p style="color:#aaa;font-size:13px;margin-top:16px">${lang==='hi'?'Gemini API key set karein admin panel mein AI articles ke liye।':'Set Gemini API key in Admin Panel for AI-generated articles.'}</p>`);
+      }
+    }
+  }
+}
+
+function closeReader() {
+  $('reader').classList.remove('open');
+  document.body.style.overflow = '';
+  currentArticle = null;
+}
+
+function toggleBookmark() {
+  bookmarked = !bookmarked;
+  updateBmIcon();
+}
+
+function updateBmIcon() {
+  $('bm-btn').innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="${bookmarked?'#fff':'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>`;
+}
+
+function shareArticle() {
+  if (navigator.share && currentArticle) {
+    navigator.share({ title: currentArticle.headline, text: currentArticle.desc, url: currentArticle.link || location.href });
+  }
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────
+function openAdmin() {
+  if (menuOpen) toggleMenu();
+  const pass = prompt('Admin Password:');
+  if (pass !== 'gdnews2025') { if(pass !== null) alert('Galat password!'); return; }
+  $('admin-panel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderPublished();
+}
+
+function closeAdmin() {
+  $('admin-panel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function saveAdminNews(updated) {
+  adminNews = updated;
+  localStorage.setItem('gdnn_news', JSON.stringify(updated));
+  window.dispatchEvent(new Event('gdnn_update'));
+  const badge = $('saved-badge');
+  badge.style.display = 'inline-block';
+  setTimeout(() => badge.style.display = 'none', 2000);
+}
+
+async function aiWrite() {
+  const topic = $('ai-topic').value.trim();
+  if (!topic) return alert('Topic daalo!');
+  if (!geminiKey) return alert('AI abhi available nahi hai. Vercel mein GEMINI_KEY check karo.');
+  const btn = $('ai-write-btn');
+  btn.disabled = true; btn.textContent = 'लिख रहा है...';
+  const text = await callGemini(
+    `Tu GD News Network ka senior journalist hai. Topic: "${topic}" par ek compelling news article likho. JSON format mein return karo (no markdown backticks):\n{"title":"Hindi headline","summary":"3-4 line summary Hindi mein"}`
+  );
+  if (text) {
+    try {
+      const p = JSON.parse(text.replace(/```json|```/g,'').trim());
+      $('f-title').value = p.title || '';
+      $('f-summary').value = p.summary || '';
+    } catch { alert('AI response parse error. Dobara try karo.'); }
+  } else alert('AI error. Key check karo.');
+  btn.disabled = false; btn.textContent = 'AI se Likhao';
+}
+
+function publishNews() {
+  const title = $('f-title').value.trim();
+  const summary = $('f-summary').value.trim();
+  if (!title || !summary) return alert('Title aur summary zaroori hai!');
+  const item = { id:Date.now(), title, summary, image:$('f-image').value.trim(), category:$('f-cat').value, createdAt:new Date().toISOString() };
+  saveAdminNews([item, ...adminNews]);
+  $('f-title').value=''; $('f-summary').value=''; $('f-image').value='';
+  renderPublished();
+  buildTicker();
+  renderArticles();
+}
+
+function deleteNews(id) {
+  saveAdminNews(adminNews.filter(n => n.id !== id));
+  renderPublished();
+  renderArticles();
+}
+
+function renderPublished() {
+  const list = $('published-list');
+  if (!adminNews.length) { list.innerHTML=''; return; }
+  list.innerHTML = `<h3 style="font-size:14px;color:#333;margin-bottom:10px">📋 Published News (${adminNews.length})</h3>` +
+    adminNews.map(n => `<div class="published-item">
+      <div class="published-item-body">
+        <div class="published-cat">${n.category}</div>
+        <p class="published-title">${n.title}</p>
+      </div>
+      <button class="delete-btn" onclick="deleteNews(${n.id})">Delete</button>
+    </div>`).join('');
+}
+
+// Update on storage change (cross-tab)
+window.addEventListener('gdnn_update', () => {
+  adminNews = (() => { try { return JSON.parse(localStorage.getItem('gdnn_news')||'[]'); } catch { return []; } })();
+});
+
+// ── START ─────────────────────────────────────────────────────
+init();
+</script>
+</body>
 </html>
